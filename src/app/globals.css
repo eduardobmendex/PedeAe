@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Toda cor da interface vem daqui; componentes não usam cores fixas.
+ * - Tema "White" (light) e "Black" (dark) via [data-theme] em qualquer elemento,
+ *   o que permite o cardápio usar o tema do estabelecimento dentro do painel (prévia).
+ * - --brand / --accent são sobrescritos por estabelecimento (style inline).
+ */
+:root,
+[data-theme="light"] {
+  --bg: #f6f6f4;
+  --surface: #ffffff;
+  --surface-2: #f0efec;
+  --border: #e3e2de;
+  --border-strong: #c9c7c1;
+  --text: #18181b;
+  --muted: #6b6b70;
+  --danger: #c2261d;
+  --danger-soft: #fdecea;
+  --success: #17803d;
+  --success-soft: #e8f6ed;
+  --warning: #a15c00;
+  --warning-soft: #fff4e0;
+  --info: #1d5fc2;
+  --info-soft: #e8f0fd;
+  --ring: #18181b;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 1px 1px rgb(0 0 0 / 0.03);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: #0b0b0c;
+  --surface: #151517;
+  --surface-2: #1d1d20;
+  --border: #2a2a2e;
+  --border-strong: #3d3d42;
+  --text: #f2f2f0;
+  --muted: #9a9aa0;
+  --danger: #f2685f;
+  --danger-soft: #3a1513;
+  --success: #4cc77a;
+  --success-soft: #11291a;
+  --warning: #f0a838;
+  --warning-soft: #33230b;
+  --info: #6aa1f5;
+  --info-soft: #132239;
+  --ring: #f2f2f0;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  color-scheme: dark;
+}
+
+/* Preferência do sistema quando o usuário não escolheu um tema no painel. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bg: #0b0b0c;
+    --surface: #151517;
+    --surface-2: #1d1d20;
+    --border: #2a2a2e;
+    --border-strong: #3d3d42;
+    --text: #f2f2f0;
+    --muted: #9a9aa0;
+    --danger: #f2685f;
+    --danger-soft: #3a1513;
+    --success: #4cc77a;
+    --success-soft: #11291a;
+    --warning: #f0a838;
+    --warning-soft: #33230b;
+    --info: #6aa1f5;
+    --info-soft: #132239;
+    --ring: #f2f2f0;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+    color-scheme: dark;
+  }
+}
+
+/* Marca padrão da plataforma; o estabelecimento sobrescreve. */
+:root {
+  --brand: #e11d48;
+  --brand-contrast: #ffffff;
+  --accent: #f59e0b;
+  --accent-contrast: #18181b;
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-contrast: var(--brand-contrast);
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --shadow-card: var(--shadow);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
