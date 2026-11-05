@@ -110,7 +110,7 @@ export function PermissionsForm({
                 name="granted"
                 value={p}
                 defaultChecked={can({ role, permissions: current }, p)}
-                className="size-4 accent-current"
+                className="size-4 accent-[var(--brand)]"
               />
               {permissionLabels[p]}
             </label>

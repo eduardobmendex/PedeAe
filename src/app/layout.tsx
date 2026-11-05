@@ -1,6 +1,7 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Geist, Geist_Mono, Lora, Nunito } from "next/font/google";
-import { themeInitScript } from "@/components/theme-toggle";
+import { themeInitScript } from "@/components/theme-scope";
+import { identitiesCss } from "@/lib/themes";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -22,13 +23,6 @@ export const metadata: Metadata = {
   description: "Cardápio digital e pedidos por QR Code para estabelecimentos de alimentação.",
 };
 
-export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f6f4" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b0b0c" },
-  ],
-};
-
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -37,9 +31,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${nunito.variable} h-full antialiased`}
     >
       <head>
+        <style dangerouslySetInnerHTML={{ __html: identitiesCss }} />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* Extensões do navegador costumam adicionar atributos ao body antes da hidratação. */}
+      <body suppressHydrationWarning className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }

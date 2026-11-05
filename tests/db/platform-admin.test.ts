@@ -107,6 +107,8 @@ describe("administrador da plataforma", () => {
       await db.as(ana);
       expect((await db.query<{ ok: boolean }>("select public.am_i_platform_admin() as ok"))[0].ok).toBe(false);
       expect(await db.expectError("select public.platform_create_organization('X', 'xyz-teste')")).toMatch(/forbidden/);
+      // Não existe mais caminho para um usuário comum criar estabelecimento.
+      expect(await db.expectError("select public.create_organization('X', 'xyz-teste')")).toMatch(/does not exist/);
       expect(await db.expectError("select public.platform_set_organization_status($1, 'suspended')", [orgB])).toMatch(/forbidden/);
       expect(
         await db.expectError("select public.platform_create_member($1, 'x@y.com', '', 'senhaforte1', 'admin')", [orgA]),

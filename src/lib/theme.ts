@@ -1,8 +1,5 @@
 import type { CSSProperties } from "react";
-
-export const themes = ["light", "dark"] as const;
-export type Theme = (typeof themes)[number];
-export const themeLabels: Record<Theme, string> = { light: "White", dark: "Black" };
+import { DEFAULT_THEME, identities, isThemeId, type ThemeId } from "./themes";
 
 // Opções aprovadas de tipografia e cantos (guardadas em organization_settings.settings).
 export const fonts = {
@@ -20,24 +17,36 @@ export const corners = {
 export type CornerKey = keyof typeof corners;
 
 export type Branding = {
-  theme: Theme;
+  theme: ThemeId;
+  /** Quando true, brand_color/accent_color substituem as cores da identidade. */
+  custom_colors: boolean;
   brand_color: string;
   accent_color: string;
   font: FontKey;
   corners: CornerKey;
 };
 
-/** Normaliza o registro de organization_settings em um Branding completo. */
-export function brandingFrom(row: {
+export type BrandingRow = {
   theme: string;
   brand_color: string;
   accent_color: string;
   settings: Record<string, unknown> | null;
-}): Branding {
+};
+
+export const DEFAULT_BRANDING_ROW: BrandingRow = {
+  theme: DEFAULT_THEME,
+  brand_color: "#E11D48",
+  accent_color: "#F59E0B",
+  settings: {},
+};
+
+/** Normaliza o registro de organization_settings em um Branding completo. */
+export function brandingFrom(row: BrandingRow): Branding {
   const font = row.settings?.font;
   const corner = row.settings?.corners;
   return {
-    theme: row.theme === "dark" ? "dark" : "light",
+    theme: isThemeId(row.theme) ? row.theme : DEFAULT_THEME,
+    custom_colors: row.settings?.custom_colors === true,
     brand_color: row.brand_color,
     accent_color: row.accent_color,
     font: typeof font === "string" && font in fonts ? (font as FontKey) : "geist",
@@ -60,22 +69,32 @@ export function contrastRatio(a: string, b: string) {
 
 /** Texto (preto ou branco) com melhor contraste sobre a cor informada. */
 export function contrastText(hex: string) {
-  return contrastRatio(hex, "#ffffff") >= contrastRatio(hex, "#18181b") ? "#ffffff" : "#18181b";
+  return contrastRatio(hex, "#ffffff") >= contrastRatio(hex, "#000000") ? "#ffffff" : "#000000";
 }
 
-/** Variáveis CSS da marca para aplicar num container com data-theme. */
+/** Cor principal efetiva (identidade ou cor própria), para manifest e ícones. */
+export function primaryColor(b: Branding) {
+  return b.custom_colors ? b.brand_color : identities[b.theme].tokens.primary;
+}
+
+/** Variáveis do escopo: fonte e cantos sempre; cores só quando o estabelecimento usa cores próprias. */
 export function brandStyle(b: Branding): CSSProperties {
+  const base = { "--radius": corners[b.corners].radius, fontFamily: fonts[b.font].css };
+  if (!b.custom_colors) return base as CSSProperties;
+
+  const tokens = identities[b.theme].tokens;
   return {
+    ...base,
     "--brand": b.brand_color,
     "--brand-contrast": contrastText(b.brand_color),
+    // Cor própria só vira texto se continuar legível sobre o fundo da identidade.
+    "--brand-text": contrastRatio(b.brand_color, tokens.surface) >= 4.5 ? b.brand_color : tokens.primaryText,
     "--accent": b.accent_color,
     "--accent-contrast": contrastText(b.accent_color),
-    "--radius": corners[b.corners].radius,
-    fontFamily: fonts[b.font].css,
   } as CSSProperties;
 }
 
-/** Contraste da cor da marca contra a superfície do tema (para avisar o admin). */
-export function brandContrastOnTheme(brand: string, theme: Theme) {
-  return contrastRatio(brand, theme === "dark" ? "#151517" : "#ffffff");
+/** Contraste da cor própria contra a superfície da identidade (para avisar o admin). */
+export function brandContrastOnTheme(brand: string, theme: ThemeId) {
+  return contrastRatio(brand, identities[theme].tokens.surface);
 }

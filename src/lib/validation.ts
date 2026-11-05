@@ -70,7 +70,7 @@ const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Cor inválida (use #RRGG
 
 export const brandingSchema = z.object({
   name: z.string().trim().min(2, "Nome muito curto").max(120),
-  theme: z.enum(["light", "dark"]),
+  custom_colors: z.literal("on").optional().transform((v) => v === "on"),
   brand_color: hexColor,
   accent_color: hexColor,
   font: z.enum(["geist", "lora", "nunito"]),

@@ -28,7 +28,7 @@ export default async function EditProductPage({ params }: PageProps<"/painel/[sl
       .order("name"),
     supabase
       .from("product_options")
-      .select("name, min_select, max_select, sort_order, product_option_items (name, price_delta_cents, available, sort_order)")
+      .select("name, min_select, max_select, price_rule, sort_order, product_option_items (name, price_delta_cents, available, sort_order)")
       .eq("product_id", id)
       .order("sort_order"),
   ]);
@@ -38,6 +38,7 @@ export default async function EditProductPage({ params }: PageProps<"/painel/[sl
     name: o.name,
     min_select: o.min_select,
     max_select: o.max_select,
+    price_rule: o.price_rule as OptionGroupInput["price_rule"],
     items: [...(o.product_option_items ?? [])]
       .sort((a, b) => a.sort_order - b.sort_order)
       .map(({ name, price_delta_cents, available }) => ({ name, price_delta_cents, available })),

@@ -21,7 +21,7 @@ const NAV: NavDef[] = [
   { path: "/cupons", label: "Cupons", anyOf: ["manage_coupons"], soon: true },
   { path: "/relatorios", label: "Relatórios", anyOf: ["view_reports"], soon: true },
   { path: "/equipe", label: "Equipe", anyOf: [] },
-  { path: "/configuracoes", label: "Configurações", anyOf: ["manage_brand"] },
+  { path: "/configuracoes", label: "Configurações", anyOf: ["manage_brand", "manage_theme"] },
 ];
 
 export function navFor(slug: string, member: { role: MemberRole; permissions: Record<string, boolean> }): NavItem[] {

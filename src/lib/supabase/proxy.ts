@@ -30,7 +30,10 @@ export async function updateSession(request: NextRequest) {
   const isLoggedIn = Boolean(data?.claims?.sub);
 
   const { pathname, search } = request.nextUrl;
-  if (!isLoggedIn && PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+  // Só navegações: uma Server Action (POST) não entende redirect comum e falha com
+  // "unexpected response". As actions validam a sessão e redirecionam por conta própria.
+  const isNavigation = request.method === "GET" || request.method === "HEAD";
+  if (isNavigation && !isLoggedIn && PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = `?next=${encodeURIComponent(pathname + search)}`;

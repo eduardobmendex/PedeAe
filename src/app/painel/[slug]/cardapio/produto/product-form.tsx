@@ -4,12 +4,14 @@ import { useActionState, useState } from "react";
 import { Button, Card, Field, FormMessage, Input, Select, Textarea } from "@/components/ui";
 import { centsToInput, parseBRL } from "@/lib/money";
 import { ImageUpload } from "@/components/image-upload";
+import type { PriceRule } from "@/lib/menu-selection";
 import { deleteProduct, saveProduct } from "../actions";
 
 export type OptionGroupInput = {
   name: string;
   min_select: number;
   max_select: number;
+  price_rule: PriceRule;
   items: { name: string; price_delta_cents: number; available: boolean }[];
 };
 
@@ -156,6 +158,19 @@ function OptionsEditor({ options, onChange }: { options: OptionGroupInput[]; onC
                 className="w-20"
               />
             </Field>
+            {group.max_select > 1 && (
+              <Field label="Preço com vários itens" htmlFor={`g-${gi}-rule`}>
+                <Select
+                  id={`g-${gi}-rule`}
+                  value={group.price_rule}
+                  onChange={(e) => update(gi, { price_rule: e.target.value as PriceRule })}
+                >
+                  <option value="sum">Soma os itens</option>
+                  <option value="max">Cobra o mais caro</option>
+                  <option value="avg">Cobra a média</option>
+                </Select>
+              </Field>
+            )}
             <Button type="button" variant="ghost" onClick={() => onChange(options.filter((_, i) => i !== gi))}>
               Remover grupo
             </Button>
@@ -224,7 +239,13 @@ function OptionsEditor({ options, onChange }: { options: OptionGroupInput[]; onC
         onClick={() =>
           onChange([
             ...options,
-            { name: "", min_select: 0, max_select: 1, items: [{ name: "", price_delta_cents: 0, available: true }] },
+            {
+              name: "",
+              min_select: 0,
+              max_select: 1,
+              price_rule: "sum",
+              items: [{ name: "", price_delta_cents: 0, available: true }],
+            },
           ])
         }
       >

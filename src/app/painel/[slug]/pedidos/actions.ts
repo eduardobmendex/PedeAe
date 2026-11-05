@@ -15,6 +15,7 @@ export async function updateOrderStatus(slug: string, orderId: string, to: strin
   if (error) return orderErrorMessage(error.message);
 
   revalidatePath(`/painel/${slug}/pedidos`);
+  revalidatePath(`/painel/${slug}`);
   return undefined;
 }
 

@@ -56,7 +56,7 @@ export function ImageUpload({
         )}
       </div>
       <div className="flex gap-2">
-        <label className="flex-1 cursor-pointer rounded-lg border border-border-strong px-3 py-2 text-center text-sm hover:bg-surface-2 has-focus-visible:outline-2 has-focus-visible:outline-ring">
+        <label className="flex-1 cursor-pointer rounded-lg border border-border-strong px-3 py-2 text-center text-sm hover:bg-hover has-focus-visible:outline-2 has-focus-visible:outline-ring">
           {uploading ? "Enviando…" : url ? "Trocar" : "Enviar imagem"}
           <input
             type="file"

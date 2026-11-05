@@ -112,7 +112,7 @@ function SheetBody({
             </button>
           </div>
           {product.description && <p className="text-muted">{product.description}</p>}
-          <p className="mt-1 font-semibold">{formatBRL(product.price_cents)}</p>
+          {product.price_cents > 0 && <p className="mt-1 font-semibold">{formatBRL(product.price_cents)}</p>}
         </div>
 
         {product.options.map((option) => {
@@ -129,7 +129,7 @@ function SheetBody({
                   {option.min_select > 0 && (
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        chosen.length >= option.min_select ? "bg-success-soft text-success" : "bg-text text-bg"
+                        chosen.length >= option.min_select ? "bg-success-soft text-success" : "bg-brand text-brand-contrast"
                       }`}
                     >
                       {chosen.length >= option.min_select ? "OK" : "Obrigatório"}
@@ -149,7 +149,10 @@ function SheetBody({
                         <span>
                           {item.name}
                           {item.price_delta_cents > 0 && (
-                            <span className="block text-sm text-muted">+ {formatBRL(item.price_delta_cents)}</span>
+                            <span className="block text-sm text-muted">
+                              {option.price_rule === "max" || option.price_rule === "avg" ? "" : "+ "}
+                              {formatBRL(item.price_delta_cents)}
+                            </span>
                           )}
                         </span>
                         <input
@@ -182,7 +185,7 @@ function SheetBody({
               rows={2}
               placeholder="Ex.: sem cebola, ponto da carne…"
               style={{ borderRadius: "var(--radius)" }}
-              className="w-full border border-border-strong bg-surface px-3 py-2 text-base outline-none placeholder:text-muted focus:border-text"
+              className="w-full border border-input-border bg-input px-3 py-2 text-base outline-none placeholder:text-muted focus:border-brand"
             />
           </div>
         )}

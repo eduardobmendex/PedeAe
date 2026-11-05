@@ -3,7 +3,14 @@ import { cacheLife, cacheTag } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
 
 export type PublicOptionItem = { id: string; name: string; price_delta_cents: number };
-export type PublicOption = { id: string; name: string; min_select: number; max_select: number; items: PublicOptionItem[] };
+export type PublicOption = {
+  id: string;
+  name: string;
+  min_select: number;
+  max_select: number;
+  price_rule?: "sum" | "max" | "avg";
+  items: PublicOptionItem[];
+};
 export type PublicProduct = {
   id: string;
   name: string;

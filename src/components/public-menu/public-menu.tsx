@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useCart, useRecentOrders } from "@/lib/cart";
 import type { PublicMenu as Menu, PublicProduct } from "@/lib/menu";
+import { minPriceCents } from "@/lib/menu-selection";
 import { formatBRL } from "@/lib/money";
 import { imageUrl } from "@/lib/storage";
 import { CartSheet } from "./cart-sheet";
@@ -77,7 +78,7 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
           placeholder="Buscar no cardápio"
           aria-label="Buscar no cardápio"
           style={{ borderRadius: "var(--radius)" }}
-          className="h-11 w-full border border-border-strong bg-surface px-4 text-base outline-none placeholder:text-muted focus:border-text"
+          className="h-11 w-full border border-input-border bg-input px-4 text-base outline-none placeholder:text-muted focus:border-brand"
         />
         {!query && menu.categories.length > 1 && (
           <nav aria-label="Categorias" className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
@@ -138,7 +139,7 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
         </p>
       )}
 
-      <footer className={`px-4 pt-4 text-center text-xs text-muted ${cart.count > 0 ? "pb-28" : "pb-8"}`}>
+      <footer className={`bg-footer px-4 pt-4 text-center text-xs text-muted ${cart.count > 0 ? "pb-28" : "pb-8"}`}>
         Cardápio digital por PedeAe
       </footer>
 
@@ -182,7 +183,7 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
 function priceLabel(p: PublicProduct) {
   // Se há grupo obrigatório com acréscimos, o preço final pode variar.
   const varies = p.options.some((o) => o.min_select > 0 && o.items.some((i) => i.price_delta_cents > 0));
-  return varies ? `a partir de ${formatBRL(p.price_cents)}` : formatBRL(p.price_cents);
+  return varies ? `a partir de ${formatBRL(minPriceCents(p))}` : formatBRL(p.price_cents);
 }
 
 function ProductCard({ product, onOpen }: { product: PublicProduct; onOpen: () => void }) {
@@ -230,7 +231,7 @@ function FeaturedCard({ product, onOpen }: { product: PublicProduct; onOpen: () 
       </div>
       <div className="p-2.5">
         <p className="line-clamp-1 text-sm font-medium">{product.name}</p>
-        <p className="text-sm font-semibold">{formatBRL(product.price_cents)}</p>
+        <p className="text-sm font-semibold">{priceLabel(product)}</p>
       </div>
     </button>
   );

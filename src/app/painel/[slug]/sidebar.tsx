@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ThemeToggle } from "@/components/theme-toggle";
 import type { NavItem } from "./nav";
 
 export function Sidebar({
@@ -26,7 +25,7 @@ export function Sidebar({
   const isActive = (href: string) => (href === home ? pathname === href : pathname.startsWith(href));
 
   return (
-    <aside className="border-b border-border bg-surface print:hidden md:sticky md:top-0 md:flex md:h-dvh md:w-60 md:shrink-0 md:flex-col md:border-r md:border-b-0">
+    <aside className="border-b border-border bg-nav print:hidden md:sticky md:top-0 md:flex md:h-dvh md:w-60 md:shrink-0 md:flex-col md:border-r md:border-b-0">
       <div className="flex items-center justify-between gap-3 px-4 py-3 md:block md:py-5">
         <div className="min-w-0">
           <Link href="/painel" className="text-xs font-medium tracking-wide text-muted uppercase hover:text-text">
@@ -65,7 +64,7 @@ export function Sidebar({
                 onClick={() => setOpen(false)}
                 aria-current={isActive(item.href) ? "page" : undefined}
                 className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  isActive(item.href) ? "bg-surface-2 text-text" : "text-muted hover:bg-surface-2 hover:text-text"
+                  isActive(item.href) ? "bg-active text-active-text" : "text-muted hover:bg-hover hover:text-text"
                 }`}
               >
                 {item.label}
@@ -75,7 +74,6 @@ export function Sidebar({
         </nav>
 
         <div className="mt-auto flex flex-col gap-3 border-t border-border p-4">
-          <ThemeToggle />
           <div className="flex items-center justify-between gap-2 text-xs">
             <span className="truncate text-muted" title={email}>
               {email}

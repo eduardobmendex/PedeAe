@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Badge, Button, Card } from "@/components/ui";
 import { formatBRL } from "@/lib/money";
+import { elapsedLabel } from "@/lib/order-metrics";
 import { actionLabels, nextStatuses, orderStatusLabels, orderStatusTone, type OrderStatus } from "@/lib/orders";
 import { updateOrderStatus } from "./actions";
 
@@ -18,11 +19,6 @@ export type PanelOrder = {
   table_name: string | null;
   items: { id: string; name: string; quantity: number; notes: string | null; options: string[] }[];
 };
-
-function elapsed(iso: string) {
-  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-  return min < 60 ? `há ${min} min` : `há ${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`;
-}
 
 export function OrderCard({ slug, order, canCancel }: { slug: string; order: PanelOrder; canCancel: boolean }) {
   const actions = nextStatuses[order.status].filter((s) => s !== "cancelled" || canCancel);
@@ -40,7 +36,7 @@ export function OrderCard({ slug, order, canCancel }: { slug: string; order: Pan
         <div className="flex flex-col items-end gap-1">
           <Badge tone={orderStatusTone[order.status]}>{orderStatusLabels[order.status]}</Badge>
           <span className="text-xs text-muted" title={new Date(order.created_at).toLocaleString("pt-BR")}>
-            {elapsed(order.created_at)} · {order.source === "staff" ? "equipe" : "cliente"}
+            {elapsedLabel(order.created_at)} ·{order.source === "staff" ? "equipe" : "cliente"}
           </span>
         </div>
       </div>
@@ -70,7 +66,7 @@ export function OrderCard({ slug, order, canCancel }: { slug: string; order: Pan
   );
 }
 
-function StatusButton({ slug, orderId, to }: { slug: string; orderId: string; to: OrderStatus }) {
+export function StatusButton({ slug, orderId, to }: { slug: string; orderId: string; to: OrderStatus }) {
   const [state, action, pending] = useActionState(updateOrderStatus.bind(null, slug, orderId, to), undefined);
   const destructive = to === "cancelled" || to === "rejected";
 

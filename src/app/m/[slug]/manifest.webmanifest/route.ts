@@ -1,4 +1,6 @@
 import { getPublicMenu } from "@/lib/menu";
+import { brandingFrom, primaryColor } from "@/lib/theme";
+import { identities } from "@/lib/themes";
 
 /**
  * Manifest PWA por estabelecimento. `?start=/q/<token>` faz o app instalado
@@ -11,7 +13,7 @@ export async function GET(request: Request, { params }: RouteContext<"/m/[slug]/
 
   const start = new URL(request.url).searchParams.get("start");
   const startUrl = start && /^\/q\/[0-9a-f]{24}$/.test(start) ? start : `/m/${slug}`;
-  const dark = menu.branding.theme === "dark";
+  const branding = brandingFrom(menu.branding);
 
   const manifest = {
     id: `/m/${slug}`,
@@ -23,8 +25,8 @@ export async function GET(request: Request, { params }: RouteContext<"/m/[slug]/
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: dark ? "#0b0b0c" : "#f6f6f4",
-    theme_color: menu.branding.brand_color,
+    background_color: identities[branding.theme].tokens.bg,
+    theme_color: primaryColor(branding),
     icons: [192, 512].map((size) => ({
       src: `/m/${slug}/icon/${size}`,
       sizes: `${size}x${size}`,

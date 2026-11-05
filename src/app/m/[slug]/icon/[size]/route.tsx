@@ -1,13 +1,13 @@
 import { ImageResponse } from "next/og";
 import { getPublicMenu } from "@/lib/menu";
-import { contrastText } from "@/lib/theme";
+import { DEFAULT_BRANDING_ROW, brandingFrom, contrastText, primaryColor } from "@/lib/theme";
 
 /** Ícone do app: inicial do estabelecimento sobre a cor da marca (seguro para máscara). */
 export async function GET(_request: Request, { params }: RouteContext<"/m/[slug]/icon/[size]">) {
   const { slug, size } = await params;
   const px = size === "512" ? 512 : 192;
   const menu = await getPublicMenu(slug);
-  const brand = menu?.branding.brand_color ?? "#E11D48";
+  const brand = primaryColor(brandingFrom(menu?.branding ?? DEFAULT_BRANDING_ROW));
   const initial = (menu?.organization.name.trim()[0] ?? "P").toUpperCase();
 
   return new ImageResponse(

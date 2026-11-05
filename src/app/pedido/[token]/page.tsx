@@ -7,8 +7,9 @@ import { getPublicMenu } from "@/lib/menu";
 import { formatBRL } from "@/lib/money";
 import { isFinal, orderStatusLabels, type OrderStatus } from "@/lib/orders";
 import { createPublicClient } from "@/lib/supabase/public";
-import { brandStyle, brandingFrom } from "@/lib/theme";
+import { DEFAULT_BRANDING_ROW, brandingFrom } from "@/lib/theme";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { BrandScope } from "@/components/brand-scope";
 
 export const metadata: Metadata = { title: "Acompanhar pedido", robots: { index: false } };
 
@@ -56,7 +57,7 @@ async function OrderLoader({ params }: { params: PageProps<"/pedido/[token]">["p
   if (!order) return <NotFoundNotice />;
 
   const menu = await getPublicMenu(order.organization.slug);
-  const branding = brandingFrom(menu?.branding ?? { theme: "light", brand_color: "#E11D48", accent_color: "#F59E0B", settings: {} });
+  const branding = brandingFrom(menu?.branding ?? DEFAULT_BRANDING_ROW);
   const stoppedLabel =
     order.status === "pending_confirmation"
       ? "Aguardando a equipe confirmar seu pedido."
@@ -68,7 +69,7 @@ async function OrderLoader({ params }: { params: PageProps<"/pedido/[token]">["p
   const currentIndex = STEPS.findIndex((s) => s.status === order.status);
 
   return (
-    <div data-theme={branding.theme} style={brandStyle(branding)} className="flex min-h-dvh flex-col bg-bg text-text">
+    <BrandScope branding={branding} className="flex min-h-dvh flex-col bg-bg text-text">
       <AutoRefresh active={!isFinal(order.status)} />
       <main className="mx-auto flex w-full max-w-lg flex-col gap-5 px-4 py-8">
         <div className="text-center">
@@ -143,11 +144,11 @@ async function OrderLoader({ params }: { params: PageProps<"/pedido/[token]">["p
         <p className="text-center text-xs text-muted">
           Esta página atualiza sozinha. Pagamento no local, ao final do atendimento.
         </p>
-        <Link href={`/m/${order.organization.slug}`} className="text-center text-sm font-medium text-brand hover:underline">
+        <Link href={`/m/${order.organization.slug}`} className="text-center text-sm font-medium text-brand-text hover:underline">
           Ver cardápio
         </Link>
       </main>
-    </div>
+    </BrandScope>
   );
 }
 

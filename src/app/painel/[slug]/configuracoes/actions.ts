@@ -5,6 +5,7 @@ import { menuTag } from "@/lib/menu";
 import { MENU_BUCKET } from "@/lib/storage";
 import { friendlyDbError, requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { isThemeId } from "@/lib/themes";
 import { brandingSchema } from "@/lib/validation";
 import type { FormState } from "@/lib/form-state";
 
@@ -12,7 +13,7 @@ export async function saveBranding(slug: string, _prev: FormState, formData: For
   const { organization } = await requirePermission(slug, "manage_brand");
   const parsed = brandingSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const { name, theme, brand_color, accent_color, font, corners, logo_path, cover_path } = parsed.data;
+  const { name, custom_colors, brand_color, accent_color, font, corners, logo_path, cover_path } = parsed.data;
   for (const path of [logo_path, cover_path]) {
     if (path && !path.startsWith(`${organization.id}/`)) return { error: "Imagem inválida." };
   }
@@ -30,12 +31,11 @@ export async function saveBranding(slug: string, _prev: FormState, formData: For
   const { data: updated, error } = await supabase
     .from("organization_settings")
     .update({
-      theme,
       brand_color: brand_color.toUpperCase(),
       accent_color: accent_color.toUpperCase(),
       logo_path,
       cover_path,
-      settings: { ...(current.settings as Record<string, unknown>), font, corners },
+      settings: { ...(current.settings as Record<string, unknown>), font, corners, custom_colors },
     })
     .eq("organization_id", organization.id)
     .select("organization_id");
@@ -82,4 +82,18 @@ export async function saveServiceSettings(slug: string, _prev: FormState, formDa
 
   revalidatePath(`/painel/${slug}/configuracoes`);
   return { success: "Regras de atendimento salvas." };
+}
+
+/** Salva a identidade visual. O banco valida a permissão (supervisor ou acima). */
+export async function saveIdentity(slug: string, theme: unknown): Promise<FormState> {
+  const { organization } = await requirePermission(slug, "manage_theme");
+  if (!isThemeId(theme)) return { error: "Identidade inválida." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_organization_theme", { p_org_id: organization.id, p_theme: theme });
+  if (error) return { error: friendlyDbError(error.message) };
+
+  updateTag(menuTag(slug));
+  revalidatePath(`/painel/${slug}`, "layout");
+  return undefined;
 }

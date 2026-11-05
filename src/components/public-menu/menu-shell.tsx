@@ -1,16 +1,16 @@
 import type { ReactNode } from "react";
 import type { PublicMenu } from "@/lib/menu";
-import { brandStyle, brandingFrom } from "@/lib/theme";
+import { BrandScope } from "@/components/brand-scope";
+import { brandingFrom } from "@/lib/theme";
 import { ServiceWorkerRegister } from "./sw-register";
 
 /** Aplica tema (White/Black), cores, fonte e cantos do estabelecimento. */
 export function MenuShell({ menu, children }: { menu: PublicMenu; children: ReactNode }) {
-  const branding = brandingFrom(menu.branding);
   return (
-    <div data-theme={branding.theme} style={brandStyle(branding)} className="flex min-h-dvh flex-col bg-bg text-text">
+    <BrandScope branding={brandingFrom(menu.branding)} className="flex min-h-dvh flex-col bg-bg text-text">
       <ServiceWorkerRegister />
       {children}
-    </div>
+    </BrandScope>
   );
 }
 

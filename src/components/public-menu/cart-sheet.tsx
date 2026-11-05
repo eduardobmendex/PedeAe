@@ -131,7 +131,7 @@ export function CartSheet({
                     maxLength={60}
                     autoComplete="given-name"
                     style={{ borderRadius: "var(--radius)" }}
-                    className="h-11 border border-border-strong bg-surface px-3 text-base font-normal outline-none focus:border-text"
+                    className="h-11 border border-input-border bg-input px-3 text-base font-normal outline-none focus:border-brand"
                   />
                 </label>
                 <label className="flex flex-col gap-1.5 text-sm font-medium">
@@ -142,7 +142,7 @@ export function CartSheet({
                     maxLength={280}
                     rows={2}
                     style={{ borderRadius: "var(--radius)" }}
-                    className="border border-border-strong bg-surface px-3 py-2 text-base font-normal outline-none focus:border-text"
+                    className="border border-input-border bg-input px-3 py-2 text-base font-normal outline-none focus:border-brand"
                   />
                 </label>
                 <p className="rounded-lg bg-surface-2 px-3 py-2 text-sm text-muted">

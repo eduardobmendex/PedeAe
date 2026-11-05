@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { withRollback } from "./helpers";
 
 describe("papéis, convites e auditoria", () => {
-  it("quem cria o estabelecimento vira admin e a criação é auditada", () =>
+  it("o responsável vinculado vira admin e a criação é auditada", () =>
     withRollback(async (db) => {
       const ana = await db.createUser("ana");
       const orgA = await db.createOrg(ana, "Pastelaria A");
@@ -106,12 +106,11 @@ describe("papéis, convites e auditoria", () => {
 
   it("slug de estabelecimento é único e validado", () =>
     withRollback(async (db) => {
-      const ana = await db.createUser("ana");
-      await db.as(ana);
-      await db.query("select public.create_organization('Pastel do Zé', 'pastel-do-ze-teste')");
-      expect(await db.expectError("select public.create_organization('Outro', 'pastel-do-ze-teste')")).toMatch(
+      await db.as(await db.getPlatformAdmin());
+      await db.query("select public.platform_create_organization('Pastel do Zé', 'pastel-do-ze-teste')");
+      expect(await db.expectError("select public.platform_create_organization('Outro', 'pastel-do-ze-teste')")).toMatch(
         /duplicate key/,
       );
-      expect(await db.expectError("select public.create_organization('Outro', 'Inválido!')")).toMatch(/check constraint/);
+      expect(await db.expectError("select public.platform_create_organization('Outro', 'Inválido!')")).toMatch(/check constraint/);
     }));
 });

@@ -6,6 +6,7 @@ import type { MemberRole } from "./validation";
 
 export const permissions = [
   "manage_brand",
+  "manage_theme",
   "manage_menu",
   "manage_tables",
   "view_orders",
@@ -24,7 +25,8 @@ export type Permission = (typeof permissions)[number];
 export type Rule = "yes" | "no" | "on" | "off";
 
 export const permissionLabels: Record<Permission, string> = {
-  manage_brand: "Editar dados e identidade visual",
+  manage_brand: "Editar dados e marca",
+  manage_theme: "Alterar a identidade visual",
   manage_menu: "Gerenciar produtos e preços",
   manage_tables: "Gerenciar mesas e QR Codes",
   view_orders: "Visualizar e atualizar pedidos",
@@ -41,6 +43,7 @@ export const permissionLabels: Record<Permission, string> = {
 export const permissionMatrix: Record<Exclude<MemberRole, "admin">, Record<Permission, Rule>> = {
   supervisor: {
     manage_brand: "no",
+    manage_theme: "yes",
     manage_menu: "on",
     manage_tables: "on",
     view_orders: "yes",
@@ -55,6 +58,7 @@ export const permissionMatrix: Record<Exclude<MemberRole, "admin">, Record<Permi
   },
   staff: {
     manage_brand: "no",
+    manage_theme: "no",
     manage_menu: "no",
     manage_tables: "no",
     view_orders: "yes",

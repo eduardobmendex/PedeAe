@@ -4,13 +4,12 @@ import { useActionState, useState, type ReactNode } from "react";
 import { ImageUpload } from "@/components/image-upload";
 import { Button, Card, Field, FormMessage, Input } from "@/components/ui";
 import { imageUrl } from "@/lib/storage";
+import { identities } from "@/lib/themes";
 import {
   brandContrastOnTheme,
   brandStyle,
   corners,
   fonts,
-  themeLabels,
-  themes,
   type Branding,
   type CornerKey,
   type FontKey,
@@ -43,7 +42,7 @@ export function BrandingForm({
     JSON.stringify(b) !== JSON.stringify(initial) ||
     images.logo_path !== initialImages.logo_path ||
     images.cover_path !== initialImages.cover_path;
-  const lowContrast = brandContrastOnTheme(b.brand_color, b.theme) < 3;
+  const lowContrast = b.custom_colors && brandContrastOnTheme(b.brand_color, b.theme) < 3;
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[1fr_22rem]">
@@ -56,40 +55,48 @@ export function BrandingForm({
         </Card>
 
         <Card className="flex flex-col gap-5">
-          <h2 className="font-semibold">Aparência do cardápio</h2>
+          <h2 className="font-semibold">Marca</h2>
 
-          <Choice legend="Tema">
-            {themes.map((t) => (
-              <Option key={t} name="theme" value={t} checked={b.theme === t} onChange={() => set("theme", t)}>
-                <span
-                  data-theme={t}
-                  className="size-5 rounded-full border border-border-strong bg-surface"
-                  aria-hidden
-                />
-                {themeLabels[t]}
-              </Option>
-            ))}
-          </Choice>
+          <label className="flex items-start gap-3 text-sm">
+            <input
+              type="checkbox"
+              name="custom_colors"
+              checked={b.custom_colors}
+              onChange={(e) => set("custom_colors", e.target.checked)}
+              className="mt-0.5 size-4"
+            />
+            <span>
+              <span className="block font-medium">Usar cores próprias</span>
+              <span className="text-muted">Substitui a cor principal e a de destaque da identidade {identities[b.theme].name}.</span>
+            </span>
+          </label>
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <ColorField
-              id="brand_color"
-              label="Cor principal"
-              hint="Botões e destaques"
-              value={b.brand_color}
-              onChange={(v) => set("brand_color", v)}
-            />
-            <ColorField
-              id="accent_color"
-              label="Cor de destaque"
-              hint="Selos e promoções"
-              value={b.accent_color}
-              onChange={(v) => set("accent_color", v)}
-            />
-          </div>
+          {b.custom_colors ? (
+            <div className="grid gap-5 sm:grid-cols-2">
+              <ColorField
+                id="brand_color"
+                label="Cor principal"
+                hint="Botões e destaques"
+                value={b.brand_color}
+                onChange={(v) => set("brand_color", v)}
+              />
+              <ColorField
+                id="accent_color"
+                label="Cor de destaque"
+                hint="Selos e promoções"
+                value={b.accent_color}
+                onChange={(v) => set("accent_color", v)}
+              />
+            </div>
+          ) : (
+            <>
+              <input type="hidden" name="brand_color" value={b.brand_color} />
+              <input type="hidden" name="accent_color" value={b.accent_color} />
+            </>
+          )}
           {lowContrast && (
             <p role="alert" className="rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning">
-              A cor principal tem pouco contraste com o fundo do tema {themeLabels[b.theme]}. Textos e ícones nessa cor
+              A cor principal tem pouco contraste com o fundo da identidade {identities[b.theme].name}. Textos e ícones nessa cor
               podem ficar difíceis de ler.
             </p>
           )}
@@ -182,7 +189,7 @@ function Option({
   return (
     <label
       className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition has-focus-visible:outline-2 has-focus-visible:outline-ring ${
-        checked ? "border-text bg-surface-2 font-medium" : "border-border-strong hover:bg-surface-2"
+        checked ? "border-brand bg-active font-medium" : "border-border-strong hover:bg-hover"
       }`}
     >
       <input type="radio" name={name} value={value} checked={checked} onChange={onChange} className="sr-only" />
@@ -247,7 +254,6 @@ function MenuPreview({ name, branding, images }: { name: string; branding: Brand
 
   return (
     <div
-      data-theme={branding.theme}
       style={brandStyle(branding)}
       className="overflow-hidden rounded-2xl border border-border bg-bg text-text shadow-card"
     >
@@ -271,7 +277,7 @@ function MenuPreview({ name, branding, images }: { name: string; branding: Brand
           <span
             key={c}
             style={{ borderRadius: radius }}
-            className={`px-3 py-1.5 font-medium ${i === 0 ? "bg-text text-bg" : "bg-surface-2 text-muted"}`}
+            className={`px-3 py-1.5 font-medium ${i === 0 ? "bg-brand text-brand-contrast" : "bg-surface-2 text-muted"}`}
           >
             {c}
           </span>

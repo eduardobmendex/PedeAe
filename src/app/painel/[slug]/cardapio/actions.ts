@@ -6,7 +6,7 @@ import { z } from "zod";
 import { friendlyDbError, requirePermission } from "@/lib/auth";
 import { menuTag } from "@/lib/menu";
 import { parseBRL } from "@/lib/money";
-import { MENU_BUCKET } from "@/lib/storage";
+import { MENU_BUCKET, isCatalogImage } from "@/lib/storage";
 import { createClient } from "@/lib/supabase/server";
 import type { FormState } from "@/lib/form-state";
 
@@ -110,6 +110,7 @@ const optionGroupSchema = z
     name: z.string().trim().min(1, "Informe o nome de cada grupo de adicionais").max(80),
     min_select: z.number().int().min(0),
     max_select: z.number().int().min(1),
+    price_rule: z.enum(["sum", "max", "avg"]).default("sum"),
     items: z.array(optionItemSchema).min(1, "Cada grupo precisa de pelo menos um item").max(50),
   })
   .refine((g) => g.min_select <= g.max_select, { message: "Mínimo não pode ser maior que o máximo" })
@@ -156,11 +157,27 @@ export async function saveProduct(
   const price_cents = parseBRL(parsed.data.price);
   if (price_cents === null) return { error: "Preço inválido. Use o formato 12,50." };
 
-  // A imagem precisa estar na pasta da própria organização.
-  const imagePath = parsed.data.image_path;
-  if (imagePath && !imagePath.startsWith(`${organization.id}/`)) return { error: "Imagem inválida." };
-
   const supabase = await createClient();
+
+  let previousImage: string | null = null;
+  if (productId) {
+    const { data: current } = await supabase.from("products").select("image_path").eq("id", productId).maybeSingle();
+    if (!current) return { error: "Produto não encontrado." };
+    previousImage = current.image_path;
+  }
+
+  // A imagem precisa estar na pasta da própria organização, ser arquivo do catálogo ou continuar a
+  // que o produto já tem (link externo do catálogo). Não se aceita um link novo vindo do formulário.
+  const imagePath = parsed.data.image_path;
+  if (
+    imagePath &&
+    imagePath !== previousImage &&
+    !imagePath.startsWith(`${organization.id}/`) &&
+    !/^\/catalog\/[a-z0-9-]+\.webp$/.test(imagePath)
+  ) {
+    return { error: "Imagem inválida." };
+  }
+
   const row = {
     name: parsed.data.name,
     description: parsed.data.description,
@@ -172,11 +189,7 @@ export async function saveProduct(
   };
 
   let id = productId;
-  let previousImage: string | null = null;
   if (id) {
-    const { data: current } = await supabase.from("products").select("image_path").eq("id", id).maybeSingle();
-    if (!current) return { error: "Produto não encontrado." };
-    previousImage = current.image_path;
     const { error } = await supabase.from("products").update(row).eq("id", id);
     if (error) return { error: friendlyDbError(error.message) };
   } else {
@@ -195,7 +208,7 @@ export async function saveProduct(
   });
   if (optionsError) return { error: `Produto salvo, mas os adicionais falharam: ${friendlyDbError(optionsError.message)}` };
 
-  if (previousImage && previousImage !== imagePath) {
+  if (previousImage && previousImage !== imagePath && !isCatalogImage(previousImage)) {
     await supabase.storage.from(MENU_BUCKET).remove([previousImage]);
   }
 
@@ -214,7 +227,52 @@ export async function deleteProduct(slug: string, id: string) {
   await requirePermission(slug, "manage_menu");
   const supabase = await createClient();
   const { data } = await supabase.from("products").delete().eq("id", id).select("image_path").maybeSingle();
-  if (data?.image_path) await supabase.storage.from(MENU_BUCKET).remove([data.image_path]);
+  if (data?.image_path && !isCatalogImage(data.image_path)) await supabase.storage.from(MENU_BUCKET).remove([data.image_path]);
   refresh(slug);
   redirect(`/painel/${slug}/cardapio`);
+}
+
+// ---------------------------------------------------------------- Catálogo base
+
+const importSchema = z
+  .array(
+    z.object({
+      key: z.string().regex(/^[a-z0-9-]+$/),
+      price_cents: z.number().int().min(0).max(100_000_000).optional(),
+    }),
+  )
+  .min(1, "Selecione pelo menos um produto")
+  .max(500);
+
+export type ImportResult = { ok: true; imported: number; skipped: number } | { ok: false; error: string };
+
+export async function importCatalog(slug: string, items: unknown): Promise<ImportResult> {
+  const { organization } = await requirePermission(slug, "manage_menu");
+  const parsed = importSchema.safeParse(items);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("import_catalog_items", { p_org_id: organization.id, p_items: parsed.data });
+  if (error) {
+    if (error.message.includes("catalog_item_not_found"))
+      return { ok: false, error: "O catálogo foi atualizado. Recarregue a página e tente de novo." };
+    if (error.message.includes("invalid_price")) return { ok: false, error: "Algum preço é inválido." };
+    return { ok: false, error: friendlyDbError(error.message) };
+  }
+
+  refresh(slug);
+  const result = data as { imported: number; skipped: number };
+  return { ok: true, imported: result.imported, skipped: result.skipped };
+}
+
+/** Torna visível uma categoria oculta, ou todas (categoryId null), no cardápio público. */
+export async function publishCategories(slug: string, categoryId: string | null) {
+  const { organization } = await requirePermission(slug, "manage_menu");
+  const supabase = await createClient();
+
+  let query = supabase.from("categories").update({ active: true }).eq("organization_id", organization.id).eq("active", false);
+  if (categoryId) query = query.eq("id", categoryId);
+  await query;
+
+  refresh(slug);
 }

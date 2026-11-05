@@ -32,7 +32,7 @@ describe("isolamento multi-tenant", () => {
       for (const table of ["organizations", "organization_settings", "memberships", "profiles", "invitations", "audit_logs"]) {
         expect(await db.expectError(`select * from ${table}`)).toMatch(/permission denied/);
       }
-      expect(await db.expectError("select public.create_organization('X', 'xyz')")).toMatch(/permission denied/);
+      expect(await db.expectError("select public.platform_create_organization('X', 'xyz')")).toMatch(/permission denied/);
     }));
 
   it("usuário não consegue se inserir como membro de outra organização", () =>

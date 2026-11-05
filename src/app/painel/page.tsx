@@ -5,7 +5,6 @@ import { Card } from "@/components/ui";
 import { isPlatformAdmin, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { roleLabels, type MemberRole } from "@/lib/validation";
-import { CreateOrganizationForm } from "./create-organization-form";
 import { PlatformHome } from "./platform-home";
 
 export const metadata: Metadata = { title: "Meus estabelecimentos" };
@@ -36,14 +35,14 @@ export default async function PainelPage() {
   return (
     <>
       <Header />
-      <main className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-8 md:grid-cols-[1fr_22rem]">
+      <main className="mx-auto w-full max-w-3xl px-4 py-8">
         <section>
           <h1 className="mb-4 text-2xl font-semibold">Meus estabelecimentos</h1>
           {orgs.length === 0 ? (
             <Card>
               <p className="text-sm text-muted">
-                Você ainda não participa de nenhum estabelecimento. Crie o seu ao lado ou peça um convite ao
-                administrador.
+                Você ainda não tem acesso a nenhum estabelecimento. Peça ao administrador do seu estabelecimento para
+                liberar o seu acesso.
               </p>
             </Card>
           ) : (
@@ -64,13 +63,6 @@ export default async function PainelPage() {
             </ul>
           )}
         </section>
-
-        <aside>
-          <Card>
-            <h2 className="mb-4 font-semibold">Novo estabelecimento</h2>
-            <CreateOrganizationForm />
-          </Card>
-        </aside>
       </main>
     </>
   );

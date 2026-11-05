@@ -10,10 +10,10 @@ const buttonBase =
   "inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-medium transition disabled:pointer-events-none disabled:opacity-50";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: "bg-text text-bg hover:opacity-85",
-  brand: "bg-brand text-brand-contrast hover:opacity-90",
-  secondary: "border border-border-strong bg-surface hover:bg-surface-2",
-  ghost: "hover:bg-surface-2",
+  primary: "bg-brand text-brand-contrast hover:bg-brand-hover disabled:bg-disabled disabled:text-disabled-text disabled:opacity-100",
+  brand: "bg-brand text-brand-contrast hover:bg-brand-hover",
+  secondary: "border border-border-strong bg-surface hover:bg-hover",
+  ghost: "hover:bg-hover",
   danger: "border border-danger/40 text-danger hover:bg-danger-soft",
 };
 
@@ -34,7 +34,7 @@ export function ButtonLink({ className = "", variant = "primary", ...props }: Co
 }
 
 const fieldBase =
-  "h-10 w-full rounded-lg border border-border-strong bg-surface px-3 text-sm text-text outline-none transition placeholder:text-muted focus:border-text";
+  "h-10 w-full rounded-lg border border-input-border bg-input px-3 text-sm text-text outline-none transition placeholder:text-muted focus:border-brand";
 
 export function Input({ className = "", ...props }: ComponentProps<"input">) {
   return <input className={`${fieldBase} ${className}`} {...props} />;
@@ -72,7 +72,7 @@ export function Card({ className = "", ...props }: ComponentProps<"div">) {
 type Tone = "neutral" | "brand" | "success" | "warning" | "danger" | "info";
 
 const toneClasses: Record<Tone, string> = {
-  neutral: "bg-surface-2 text-muted",
+  neutral: "bg-badge text-badge-text",
   brand: "bg-brand text-brand-contrast",
   success: "bg-success-soft text-success",
   warning: "bg-warning-soft text-warning",

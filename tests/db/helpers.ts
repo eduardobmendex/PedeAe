@@ -24,6 +24,7 @@ export async function withRollback(fn: (db: Db) => Promise<void>) {
 
 export class Db {
   private savepoint = 0;
+  private platformAdmin?: TestUser;
 
   constructor(private client: Client) {}
 
@@ -79,11 +80,22 @@ export class Db {
     throw new Error(`Era esperado erro em: ${sql}`);
   }
 
-  /** Cria uma organização como `owner` e devolve o id. */
+  /** Admin da plataforma do teste (criado uma vez por transação). */
+  async getPlatformAdmin(): Promise<TestUser> {
+    if (!this.platformAdmin) {
+      this.platformAdmin = await this.createUser("plataforma");
+      await this.query("insert into platform_admins (user_id) values ($1)", [this.platformAdmin.id]);
+    }
+    return this.platformAdmin;
+  }
+
+  /** O admin da plataforma cria a organização e vincula `owner` como admin; termina agindo como `owner`. */
   async createOrg(owner: TestUser, name: string): Promise<string> {
-    await this.as(owner);
+    await this.as(await this.getPlatformAdmin());
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${randomUUID().slice(0, 6)}`;
-    const [row] = await this.query<{ id: string }>("select public.create_organization($1, $2) as id", [name, slug]);
+    const [row] = await this.query<{ id: string }>("select public.platform_create_organization($1, $2) as id", [name, slug]);
+    await this.query("select public.platform_create_member($1, $2, '', '', 'admin')", [row.id, owner.email]);
+    await this.as(owner);
     return row.id;
   }
 }

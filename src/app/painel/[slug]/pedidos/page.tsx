@@ -4,6 +4,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
 import { requirePermission } from "@/lib/auth";
 import { formatBRL } from "@/lib/money";
+import { startOfBusinessDay } from "@/lib/order-metrics";
 import { activeStatuses, type OrderStatus } from "@/lib/orders";
 import { can } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
@@ -25,9 +26,6 @@ export default async function OrdersPage({ params, searchParams }: PageProps<"/p
   const { organization, membership } = await requirePermission(slug, "view_orders");
   const supabase = await createClient();
 
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-
   let query = supabase
     .from("orders")
     .select(
@@ -42,7 +40,7 @@ export default async function OrdersPage({ params, searchParams }: PageProps<"/p
   const statuses = FILTERS[filter].statuses;
   if (statuses) query = query.in("status", statuses);
   // Pedidos ativos aparecem mesmo se vierem de ontem (não podem sumir da fila).
-  if (filter !== "ativos") query = query.gte("created_at", startOfDay.toISOString());
+  if (filter !== "ativos") query = query.gte("created_at", startOfBusinessDay());
 
   const { data } = await query;
 
@@ -93,7 +91,7 @@ export default async function OrdersPage({ params, searchParams }: PageProps<"/p
             href={`/painel/${slug}/pedidos?filtro=${key}`}
             aria-current={filter === key ? "page" : undefined}
             className={`rounded-full px-3.5 py-1.5 text-sm font-medium ${
-              filter === key ? "bg-text text-bg" : "bg-surface-2 text-muted hover:text-text"
+              filter === key ? "bg-brand text-brand-contrast" : "bg-surface-2 text-muted hover:text-text"
             }`}
           >
             {FILTERS[key].label}

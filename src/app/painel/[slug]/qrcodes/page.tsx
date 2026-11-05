@@ -49,7 +49,7 @@ export default async function QrCodesPage({ params }: PageProps<"/painel/[slug]/
             <div className="min-w-0 flex-1">
               <h2 className="font-semibold">Cardápio geral</h2>
               <p className="text-sm text-muted">Sem vínculo com mesa — ideal para balcão, vitrine e redes sociais.</p>
-              <Link href={generalUrl} target="_blank" className="mt-1 block truncate text-sm text-brand hover:underline">
+              <Link href={generalUrl} target="_blank" className="mt-1 block truncate text-sm text-brand-text hover:underline">
                 {generalUrl}
               </Link>
             </div>
@@ -63,7 +63,7 @@ export default async function QrCodesPage({ params }: PageProps<"/painel/[slug]/
             <EmptyState
               title="Nenhuma mesa"
               action={
-                <Link href={`/painel/${slug}/mesas`} className="text-sm font-medium text-brand hover:underline">
+                <Link href={`/painel/${slug}/mesas`} className="text-sm font-medium text-brand-text hover:underline">
                   Cadastrar mesas
                 </Link>
               }

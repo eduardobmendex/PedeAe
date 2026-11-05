@@ -1,8 +1,10 @@
 import "server-only";
 import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
+import { connection } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { can, type Permission } from "@/lib/permissions";
+import { brandingFrom, type Branding, type BrandingRow } from "@/lib/theme";
 import type { MemberRole } from "@/lib/validation";
 
 export type CurrentUser = { id: string; email: string };
@@ -12,10 +14,13 @@ export type OrgContext = {
   /** id é null quando o acesso vem do admin da plataforma (sem vínculo). */
   membership: { id: string | null; role: MemberRole; permissions: Record<string, boolean> };
   isPlatformAdmin: boolean;
+  branding: Branding;
 };
 
 /** Usuário autenticado (JWT validado) ou null. */
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  // A validação da sessão consulta o relógio: precisa rodar na requisição, nunca no pré-render.
+  await connection();
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const claims = data?.claims;
@@ -44,39 +49,34 @@ export async function requirePlatformAdmin(): Promise<CurrentUser> {
 }
 
 /**
- * Resolve o estabelecimento pelo slug e o vínculo ATIVO do usuário com ele.
- * Se o usuário não for membro, o RLS nem devolve a organização => 404.
+ * Resolve o estabelecimento pelo slug e o acesso do usuário a ele, numa só ida ao banco.
+ * Sem vínculo ativo (e sem ser admin da plataforma), a RPC devolve null => 404.
  */
 export const getOrgContext = cache(async (slug: string): Promise<OrgContext> => {
-  const user = await requireUser(`/painel/${slug}`);
+  await requireUser(`/painel/${slug}`);
   const supabase = await createClient();
 
-  const { data: organization } = await supabase
-    .from("organizations")
-    .select("id, name, slug, status")
-    .eq("slug", slug)
-    .maybeSingle();
-  if (!organization) notFound();
+  const { data } = await supabase.rpc("get_org_context", { p_slug: slug });
+  const context = data as {
+    organization: OrgContext["organization"];
+    membership: { id: string; role: MemberRole; permissions: Record<string, boolean> } | null;
+    is_platform_admin: boolean;
+    branding: BrandingRow;
+  } | null;
+  if (!context) notFound();
+  const branding = brandingFrom(context.branding);
 
-  const { data: membership } = await supabase
-    .from("memberships")
-    .select("id, role, permissions")
-    .eq("organization_id", organization.id)
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .maybeSingle();
-
-  const platformAdmin = await isPlatformAdmin();
-  if (platformAdmin) {
+  if (context.is_platform_admin) {
     return {
-      organization,
-      membership: { id: membership?.id ?? null, role: "admin", permissions: {} },
+      organization: context.organization,
+      membership: { id: context.membership?.id ?? null, role: "admin", permissions: {} },
       isPlatformAdmin: true,
+      branding,
     };
   }
-  if (!membership) notFound();
+  if (!context.membership) notFound();
 
-  return { organization, membership: membership as OrgContext["membership"], isPlatformAdmin: false };
+  return { organization: context.organization, membership: context.membership, isPlatformAdmin: false, branding };
 });
 
 /** Exige um dos papéis informados; usado em páginas e Server Actions. */

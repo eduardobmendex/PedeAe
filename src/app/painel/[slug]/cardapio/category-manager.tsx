@@ -49,7 +49,7 @@ function CategoryRow({ slug, category, first, last }: { slug: string; category: 
   return (
     <li className="group rounded-lg">
       <details>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-surface-2">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-hover">
           <span className={category.active ? "" : "text-muted line-through"}>{category.name}</span>
           <span className="flex items-center gap-0.5">
             <MoveButton slug={slug} id={category.id} direction="up" disabled={first} />

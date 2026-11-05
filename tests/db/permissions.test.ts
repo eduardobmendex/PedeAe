@@ -80,4 +80,42 @@ describe("matriz de permissões", () => {
       expect(log.metadata.theme.to).toBe("dark");
       expect(log.metadata.brand_color.to).toBe("#000000");
     }));
+
+  it("supervisor troca a identidade, mas não o resto da marca; funcionário não troca", () =>
+    withRollback(async (db) => {
+      const ana = await db.createUser("ana");
+      const sara = await db.createUser("sara");
+      const carla = await db.createUser("carla");
+      const bruno = await db.createUser("bruno");
+      const orgA = await db.createOrg(ana, "Loja A");
+      await db.createOrg(bruno, "Loja B");
+
+      await db.as(await db.getPlatformAdmin());
+      await db.query("select public.platform_create_member($1, $2, '', '', 'supervisor')", [orgA, sara.email]);
+      await db.query("select public.platform_create_member($1, $2, '', '', 'staff')", [orgA, carla.email]);
+      const theme = async () => {
+        await db.asSuperuser();
+        return (await db.query<{ theme: string }>("select theme from organization_settings where organization_id = $1", [orgA]))[0].theme;
+      };
+      const setTheme = "select public.set_organization_theme($1, $2)";
+
+      await db.as(sara);
+      await db.query(setTheme, [orgA, "dark"]);
+      expect(await theme()).toBe("dark");
+      await db.as(sara);
+      expect(await db.query("update organization_settings set brand_color = '#000000' where organization_id = $1 returning 1", [orgA])).toEqual([]);
+
+      await db.as(carla);
+      expect(await db.expectError(setTheme, [orgA, "red"])).toMatch(/forbidden/);
+      await db.as(bruno);
+      expect(await db.expectError(setTheme, [orgA, "red"])).toMatch(/forbidden/);
+      await db.as(null);
+      expect(await db.expectError(setTheme, [orgA, "red"])).toMatch(/permission denied/);
+
+      // Admin Geral altera o de qualquer estabelecimento; valor fora da lista é recusado.
+      await db.as(await db.getPlatformAdmin());
+      await db.query(setTheme, [orgA, "red"]);
+      expect(await db.expectError(setTheme, [orgA, "azul"])).toMatch(/check constraint/);
+      expect(await theme()).toBe("red");
+    }));
 });

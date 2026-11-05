@@ -63,7 +63,7 @@ export async function PlatformHome() {
                         </Button>
                       </form>
                     )}
-                    <Link href={`/painel/${org.slug}`} className="inline-flex h-8 items-center rounded-lg px-3 text-sm font-medium hover:bg-surface-2">
+                    <Link href={`/painel/${org.slug}`} className="inline-flex h-8 items-center rounded-lg px-3 text-sm font-medium hover:bg-hover">
                       Gerenciar
                     </Link>
                   </div>

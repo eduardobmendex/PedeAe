@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Badge, ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
+import { Badge, Button, ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requirePermission } from "@/lib/auth";
 import { formatBRL } from "@/lib/money";
 import { imageUrl } from "@/lib/storage";
 import { createClient } from "@/lib/supabase/server";
-import { toggleProductAvailable } from "./actions";
+import { publishCategories, toggleProductAvailable } from "./actions";
 import { CategoryManager } from "./category-manager";
 
 export const metadata: Metadata = { title: "Cardápio" };
 
-export default async function MenuPage({ params }: PageProps<"/painel/[slug]/cardapio">) {
+export default async function MenuPage({ params, searchParams }: PageProps<"/painel/[slug]/cardapio">) {
   const { slug } = await params;
+  const { importado } = await searchParams;
+  const importedCount = typeof importado === "string" ? Number.parseInt(importado, 10) : NaN;
   const { organization } = await requirePermission(slug, "manage_menu");
   const supabase = await createClient();
 
@@ -33,29 +35,57 @@ export default async function MenuPage({ params }: PageProps<"/painel/[slug]/car
   const cats = categories ?? [];
   const byCategory = new Map<string, NonNullable<typeof products>>();
   for (const p of products ?? []) byCategory.set(p.category_id, [...(byCategory.get(p.category_id) ?? []), p]);
+  const hiddenWithProducts = cats.filter((c) => !c.active && byCategory.has(c.id));
 
   return (
     <>
       <PageHeader
         title="Cardápio"
-        description="Categorias, produtos, preços e adicionais. As alterações aparecem no cardápio público na hora."
+        description="Categorias, produtos, preços e adicionais. Tudo é salvo na hora; só categorias publicadas aparecem para os clientes."
         actions={
           <>
             <ButtonLink href={`/m/${slug}`} target="_blank" variant="secondary">
               Ver cardápio público
+            </ButtonLink>
+            <ButtonLink href={`/painel/${slug}/cardapio/importar`} variant="secondary">
+              Importar do catálogo
             </ButtonLink>
             {cats.length > 0 && <ButtonLink href={`/painel/${slug}/cardapio/produto/novo`}>Novo produto</ButtonLink>}
           </>
         }
       />
 
+      {Number.isFinite(importedCount) && (
+        <p role="status" className="mb-6 rounded-lg bg-success-soft px-4 py-3 text-sm text-success">
+          {importedCount === 0
+            ? "Nenhum produto novo: os selecionados já estavam no cardápio."
+            : `${importedCount} produto(s) importado(s) e salvo(s). Revise os preços e publique as categorias para os clientes verem.`}
+        </p>
+      )}
+
+      {hiddenWithProducts.length > 0 && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning">
+          <p>
+            {hiddenWithProducts.length} categoria(s) com produtos estão ocultas: os clientes ainda não veem esses itens no
+            cardápio.
+          </p>
+          <form action={publishCategories.bind(null, slug, null)}>
+            <Button type="submit">Publicar todas</Button>
+          </form>
+        </div>
+      )}
+
       <div className="grid items-start gap-6 lg:grid-cols-[18rem_1fr]">
         <CategoryManager slug={slug} categories={cats} />
 
         <div className="flex flex-col gap-6">
           {cats.length === 0 ? (
-            <EmptyState title="Comece criando uma categoria">
-              Exemplos: Pastéis, Lanches, Bebidas, Sobremesas. Depois cadastre os produtos de cada uma.
+            <EmptyState
+              title="Cardápio vazio"
+              action={<ButtonLink href={`/painel/${slug}/cardapio/importar`}>Importar do catálogo</ButtonLink>}
+            >
+              Importe um cardápio pronto de pizzaria, bar, hamburgueria, pastelaria ou comida baiana, ou crie suas categorias
+              ao lado.
             </EmptyState>
           ) : (
             cats.map((cat) => {
@@ -67,12 +97,21 @@ export default async function MenuPage({ params }: PageProps<"/painel/[slug]/car
                       {cat.name}
                       {!cat.active && <Badge>oculta</Badge>}
                     </h2>
-                    <Link
-                      href={`/painel/${slug}/cardapio/produto/novo?categoria=${cat.id}`}
-                      className="text-sm font-medium text-brand hover:underline"
-                    >
-                      + Produto
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      {!cat.active && (
+                        <form action={publishCategories.bind(null, slug, cat.id)}>
+                          <Button type="submit" variant="secondary" className="h-8 px-3">
+                            Publicar
+                          </Button>
+                        </form>
+                      )}
+                      <Link
+                        href={`/painel/${slug}/cardapio/produto/novo?categoria=${cat.id}`}
+                        className="text-sm font-medium text-brand-text hover:underline"
+                      >
+                        + Produto
+                      </Link>
+                    </div>
                   </div>
                   {items.length === 0 ? (
                     <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-sm text-muted">
@@ -104,7 +143,7 @@ export default async function MenuPage({ params }: PageProps<"/painel/[slug]/car
                               <form action={toggleProductAvailable.bind(null, slug, p.id, !p.available)}>
                                 <button
                                   type="submit"
-                                  className="rounded-lg px-2 py-1 text-xs font-medium hover:bg-surface-2"
+                                  className="rounded-lg px-2 py-1 text-xs font-medium hover:bg-hover"
                                   title={p.available ? "Marcar como esgotado" : "Marcar como disponível"}
                                 >
                                   {p.available ? <Badge tone="success">disponível</Badge> : <Badge tone="danger">esgotado</Badge>}

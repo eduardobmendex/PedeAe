@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { missingOptions, optionRuleLabel, toggleItem, unitPriceCents, type SelectableProduct } from "@/lib/menu-selection";
+import { minPriceCents, missingOptions, optionRuleLabel, toggleItem, unitPriceCents, type SelectableProduct } from "@/lib/menu-selection";
 
 const product: SelectableProduct = {
   price_cents: 2000,
@@ -58,5 +58,37 @@ describe("seleção de adicionais", () => {
     expect(optionRuleLabel(size)).toBe("Obrigatório · escolha 1");
     expect(optionRuleLabel(extra)).toBe("Opcional · até 2");
     expect(optionRuleLabel({ min_select: 1, max_select: 3 })).toBe("Obrigatório · 1 a 3");
+  });
+});
+
+describe("regras de preço por grupo", () => {
+  const pizza: SelectableProduct = {
+    price_cents: 0,
+    options: [
+      {
+        id: "sabores",
+        name: "Sabores",
+        min_select: 1,
+        max_select: 2,
+        price_rule: "max",
+        items: [
+          { id: "mus", name: "Mussarela", price_delta_cents: 5200 },
+          { id: "cam", name: "Camarão", price_delta_cents: 7600 },
+        ],
+      },
+      { id: "borda", name: "Borda", min_select: 0, max_select: 1, items: [{ id: "cat", name: "Catupiry", price_delta_cents: 1000 }] },
+    ],
+  };
+
+  it("meio a meio cobra o sabor mais caro e soma a borda", () => {
+    expect(unitPriceCents(pizza, { sabores: ["mus", "cam"], borda: ["cat"] })).toBe(8600);
+    expect(unitPriceCents(pizza, { sabores: ["mus"] })).toBe(5200);
+  });
+
+  it("média arredonda e preço mínimo usa o item mais barato", () => {
+    const avg = { ...pizza, options: [{ ...pizza.options[0], price_rule: "avg" as const }] };
+    expect(unitPriceCents(avg, { sabores: ["mus", "cam"] })).toBe(6400);
+    expect(minPriceCents(pizza)).toBe(5200);
+    expect(optionRuleLabel(pizza.options[0])).toBe("Obrigatório · 1 a 2 · vale o preço do mais caro");
   });
 });
