@@ -230,4 +230,75 @@ describe("regra de preço por grupo", () => {
       // 1000 + round((100 + 201) / 2) = 1000 + 151
       expect(r.total_cents).toBe(1151);
     }));
+
+  it("troca o tipo do cardápio sem apagar nada e volta com os preços editados", () =>
+    withRollback(async (db) => {
+      const ana = await db.createUser("ana");
+      const orgA = await db.createOrg(ana, "Loja A");
+      await db.as(ana);
+      // Produto criado à mão numa categoria que não é do catálogo.
+      const [{ id: catId }] = await db.query<{ id: string }>(
+        "insert into categories (organization_id, name, active) values ($1, 'Especiais da casa', true) returning id",
+        [orgA],
+      );
+      await db.query("insert into products (organization_id, category_id, name, price_cents) values ($1, $2, 'Prato do chef', 5000)", [orgA, catId]);
+
+      const visible = async () => {
+        const rows = await db.query<{ key: string | null; types: string[] | null }>(
+          `select p.source_catalog_key as key, ci.types from products p
+           join categories c on c.id = p.category_id
+           left join catalog_items ci on ci.key = p.source_catalog_key
+           where p.organization_id = $1 and p.available and c.active`,
+          [orgA],
+        );
+        return rows;
+      };
+
+      const [{ r: toPizza }] = await db.query<{ r: { imported: number; wallpaper: string } }>("select public.switch_menu_type($1, 'pizzaria') as r", [orgA]);
+      expect(toPizza.imported).toBeGreaterThan(0);
+      expect(toPizza.wallpaper).toBe("pizzaria");
+      let shown = await visible();
+      expect(shown.length).toBe(toPizza.imported);
+      expect(shown.every((p) => p.types?.includes("pizzaria"))).toBe(true);
+
+      // Preço editado no tipo pizzaria.
+      await db.query("update products set price_cents = 777 where organization_id = $1 and source_catalog_key = 'pizza-grande'", [orgA]);
+
+      const [{ r: toBar }] = await db.query<{ r: { wallpaper: string } }>("select public.switch_menu_type($1, 'bar') as r", [orgA]);
+      expect(toBar.wallpaper).toBe("bar");
+      shown = await visible();
+      expect(shown.length).toBeGreaterThan(0);
+      expect(shown.every((p) => p.types?.includes("bar"))).toBe(true);
+
+      // De volta à pizzaria: nada reimportado, preço editado mantido.
+      const [{ r: back }] = await db.query<{ r: { imported: number } }>("select public.switch_menu_type($1, 'pizzaria') as r", [orgA]);
+      expect(back.imported).toBe(0);
+      const [{ price_cents }] = await db.query<{ price_cents: string }>(
+        "select price_cents from products where organization_id = $1 and source_catalog_key = 'pizza-grande'",
+        [orgA],
+      );
+      expect(Number(price_cents)).toBe(777);
+
+      // Nada apagado: o produto feito à mão continua existindo (categoria oculta).
+      const [{ n }] = await db.query<{ n: string }>("select count(*) as n from products where organization_id = $1 and name = 'Prato do chef'", [orgA]);
+      expect(Number(n)).toBe(1);
+
+      const [{ settings }] = await db.query<{ settings: Record<string, string> }>(
+        "select settings from organization_settings where organization_id = $1",
+        [orgA],
+      );
+      expect(settings).toMatchObject({ establishment_type: "pizzaria", wallpaper: "pizzaria" });
+
+      expect(await db.expectError("select public.switch_menu_type($1, 'sorveteria')", [orgA])).toMatch(/invalid_type/);
+    }));
+
+  it("funcionário não troca o tipo do cardápio", () =>
+    withRollback(async (db) => {
+      const ana = await db.createUser("ana");
+      const carla = await db.createUser("carla");
+      const orgA = await db.createOrg(ana, "Loja A");
+      await addStaff(db, ana, orgA, carla);
+      await db.as(carla);
+      expect(await db.expectError("select public.switch_menu_type($1, 'bar')", [orgA])).toMatch(/forbidden/);
+    }));
 });

@@ -7,6 +7,7 @@ import { DEFAULT_BRANDING_ROW, brandingFrom } from "@/lib/theme";
 import { BrandingForm } from "./branding-form";
 import { IdentitySelector } from "./identity-selector";
 import { ServiceSettingsForm } from "./service-form";
+import { WallpaperSelector } from "./wallpaper-selector";
 
 export const metadata: Metadata = { title: "Configurações" };
 
@@ -31,6 +32,7 @@ export default async function SettingsPage({ params }: PageProps<"/painel/[slug]
         description={canEditBrand ? "Identidade visual, marca e regras de atendimento do estabelecimento." : "Identidade visual do estabelecimento."}
       />
       <IdentitySelector slug={slug} current={branding.theme} />
+      <WallpaperSelector slug={slug} theme={branding.theme} current={branding.wallpaper} />
       {canEditBrand && (
         <>
           {/* A chave recomeça o formulário quando a identidade muda (ela desliga as cores próprias). */}

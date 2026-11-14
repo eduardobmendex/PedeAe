@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Lora, Nunito } from "next/font/google";
+import { Geist, Geist_Mono, Lora, Nunito, Permanent_Marker } from "next/font/google";
 import { themeInitScript } from "@/components/theme-scope";
 import { identitiesCss } from "@/lib/themes";
 import "./globals.css";
@@ -17,6 +17,8 @@ const geistMono = Geist_Mono({
 // Fontes alternativas do cardápio (opções aprovadas); sem preload para não pesar o painel.
 const lora = Lora({ variable: "--font-lora", subsets: ["latin"], preload: false });
 const nunito = Nunito({ variable: "--font-nunito", subsets: ["latin"], preload: false });
+// Lettering do nome do estabelecimento no cardápio público.
+const permanentMarker = Permanent_Marker({ variable: "--font-permanent-marker", weight: "400", subsets: ["latin"], preload: false });
 
 export const metadata: Metadata = {
   title: { default: "PedeAe", template: "%s · PedeAe" },
@@ -28,7 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="pt-BR"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${nunito.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} ${nunito.variable} ${permanentMarker.variable} h-full antialiased`}
     >
       <head>
         <style dangerouslySetInnerHTML={{ __html: identitiesCss }} />

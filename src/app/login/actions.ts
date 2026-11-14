@@ -5,6 +5,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { safeNextPath, signInSchema, signUpSchema } from "@/lib/validation";
 import type { FormState } from "@/lib/form-state";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
+
+// Falha de rede ou servidor fora do ar não pode virar "senha incorreta".
+const UNAVAILABLE = "Não foi possível conectar ao servidor de login. Tente novamente em instantes.";
 
 export async function signIn(_prev: FormState, formData: FormData): Promise<FormState> {
   const parsed = signInSchema.safeParse(Object.fromEntries(formData));
@@ -13,6 +17,7 @@ export async function signIn(_prev: FormState, formData: FormData): Promise<Form
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
+    if (isAuthRetryableFetchError(error)) return { error: UNAVAILABLE };
     return {
       error: error.code === "email_not_confirmed" ? "Confirme seu e-mail antes de entrar." : "E-mail ou senha incorretos.",
     };
@@ -37,7 +42,10 @@ export async function signUp(_prev: FormState, formData: FormData): Promise<Form
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   });
-  if (error) return { error: "Não foi possível criar a conta. Verifique os dados e tente novamente." };
+  if (error) {
+    if (isAuthRetryableFetchError(error)) return { error: UNAVAILABLE };
+    return { error: "Não foi possível criar a conta. Verifique os dados e tente novamente." };
+  }
 
   // Com confirmação de e-mail desativada no projeto, a sessão já vem pronta.
   if (data.session) redirect(next);

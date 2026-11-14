@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useCart, useRecentOrders } from "@/lib/cart";
 import type { PublicMenu as Menu, PublicProduct } from "@/lib/menu";
 import { minPriceCents } from "@/lib/menu-selection";
 import { formatBRL } from "@/lib/money";
 import { imageUrl } from "@/lib/storage";
 import { CartSheet } from "./cart-sheet";
+import { CategoryIcon, ChefHatIcon, CrownIcon, FlameIcon, PlusIcon, SearchIcon } from "./menu-icons";
 import { ProductSheet } from "./product-sheet";
 
 const normalize = (s: string) =>
@@ -40,26 +41,84 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
 
   const featured = query ? [] : menu.categories.flatMap((c) => c.products.filter((p) => p.featured));
 
+  // Categoria visível agora (destaca o chip correspondente durante a rolagem).
+  const [active, setActive] = useState<string | null>(menu.categories[0]?.id ?? null);
+  const navRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (query) return;
+    const sections = menu.categories
+      .map((c) => document.getElementById(`cat-${c.id}`))
+      .filter((el): el is HTMLElement => el !== null);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (first) setActive(first.target.id.slice(4));
+      },
+      { rootMargin: "-150px 0px -55% 0px" },
+    );
+    sections.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [menu.categories, query]);
+
+  useEffect(() => {
+    navRef.current
+      ?.querySelector('[aria-current="true"]')
+      ?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [active]);
+
+  // Estrutura única para DARK, RED e WHITE: só tokens do tema (brand, surface, text...), nada fixo por tema.
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col">
+    <div
+      className="relative z-10 mx-auto flex min-h-dvh w-full container-cardapio flex-col bg-bg md:my-6 md:rounded-[calc(var(--radius)*2)] md:min-h-[calc(100dvh-3rem)] md:overflow-clip md:border md:border-brand/35 md:shadow-[0_0_60px_rgb(0_0_0/0.45)]"
+    >
       <header
-        className="relative bg-brand bg-cover bg-center px-4 pt-14 pb-5 text-brand-contrast"
-        style={
-          cover
-            ? { backgroundImage: `linear-gradient(to top, rgb(0 0 0 / 0.7), rgb(0 0 0 / 0.1)), url(${cover})`, color: "#fff" }
-            : undefined
-        }
+        className="relative overflow-hidden px-5 pt-12 pb-12 text-brand-contrast sm:px-8"
+        style={{
+          background: cover
+            ? `linear-gradient(to top, rgb(0 0 0 / 0.75), rgb(0 0 0 / 0.2)), url(${cover}) center / cover`
+            : "linear-gradient(120deg, var(--brand), color-mix(in srgb, var(--brand) 62%, black))",
+          color: cover ? "#fff" : undefined,
+        }}
       >
-        <div className="flex items-center gap-3">
+        {/* Brilho diagonal sutil, como na referência. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -top-1/2 left-1/3 h-[200%] w-1/3 rotate-12 bg-white/10 blur-2xl"
+        />
+        <ChefHatIcon className="pointer-events-none absolute top-6 right-6 hidden size-20 -rotate-12 opacity-25 sm:block" />
+
+        <div className="relative flex items-center gap-4 sm:gap-5">
           {logo && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logo} alt="" className="size-14 rounded-full border-2 border-white/80 bg-surface object-cover" />
+            <img
+              src={logo}
+              alt=""
+              className="size-20 shrink-0 rounded-full border-[3px] border-white/85 bg-surface object-cover shadow-lg sm:size-24"
+            />
           )}
+          {logo && <span aria-hidden className="h-16 w-px shrink-0 bg-current opacity-40" />}
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-semibold">{menu.organization.name}</h1>
-            <p className="text-sm opacity-85">{tableName ? `Você está na ${tableName}` : "Cardápio"}</p>
+            {/* Lettering só no nome: logotipo e fonte escolhida pelo estabelecimento seguem como estão. */}
+            <h1
+              className="line-clamp-2 -rotate-1 text-3xl leading-tight [text-shadow:0_2px_0_rgb(0_0_0/0.18)] sm:text-4xl"
+              style={{ fontFamily: "var(--font-permanent-marker), var(--font-geist-sans), cursive" }}
+            >
+              {menu.organization.name}
+            </h1>
+            <p className="mt-1 text-xs font-medium tracking-[0.3em] uppercase opacity-90">
+              {tableName ? `Você está na ${tableName}` : "Cardápio digital"}
+            </p>
           </div>
         </div>
+
+        {/* Curva na base do cabeçalho, na cor do fundo. */}
+        <svg aria-hidden viewBox="0 0 400 40" preserveAspectRatio="none" className="absolute inset-x-0 -bottom-px h-8 w-full sm:h-10">
+          <path d="M0 40V22C90 40 210 42 300 22 340 13 375 4 400 0v40Z" style={{ fill: "var(--bg)" }} />
+        </svg>
+
         {recent.length > 0 && (
           <Link
             href={`/pedido/${recent[0].token}`}
@@ -70,33 +129,49 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
         )}
       </header>
 
-      <div className="sticky top-0 z-10 border-b border-border bg-bg/95 px-4 pt-3 pb-2 backdrop-blur">
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar no cardápio"
-          aria-label="Buscar no cardápio"
-          style={{ borderRadius: "var(--radius)" }}
-          className="h-11 w-full border border-input-border bg-input px-4 text-base outline-none placeholder:text-muted focus:border-brand"
-        />
+      <div className="sticky top-0 z-20 bg-bg/95 px-4 pt-2 pb-3 backdrop-blur sm:px-6">
+        <label className="relative block">
+          <span className="sr-only">Buscar no cardápio</span>
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Busque no cardápio..."
+            style={{ borderRadius: "calc(var(--radius) * 2)" }}
+            className="h-12 w-full border border-brand/40 bg-surface pr-4 pl-12 text-base outline-none placeholder:text-muted focus:border-brand"
+          />
+        </label>
         {!query && menu.categories.length > 1 && (
-          <nav aria-label="Categorias" className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-            {menu.categories.map((c) => (
-              <a
-                key={c.id}
-                href={`#cat-${c.id}`}
-                style={{ borderRadius: "var(--radius)" }}
-                className="shrink-0 bg-surface-2 px-3.5 py-1.5 text-sm font-medium text-muted hover:text-text"
-              >
-                {c.name}
-              </a>
-            ))}
+          <nav
+            ref={navRef}
+            aria-label="Categorias"
+            className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6"
+          >
+            {menu.categories.map((c) => {
+              const on = active === c.id;
+              return (
+                <a
+                  key={c.id}
+                  href={`#cat-${c.id}`}
+                  aria-current={on ? "true" : undefined}
+                  onClick={() => setActive(c.id)}
+                  style={{ borderRadius: "calc(var(--radius) * 2)" }}
+                  className={`flex shrink-0 items-center gap-2 border px-4 py-2 text-sm font-semibold transition ${on
+                      ? "border-brand bg-brand text-brand-contrast shadow-[0_4px_14px_color-mix(in_srgb,var(--brand)_40%,transparent)]"
+                      : "border-border-strong bg-surface text-text hover:border-brand/60"
+                    }`}
+                >
+                  <CategoryIcon name={c.name} className={`size-4.5 ${on ? "" : "text-brand-text"}`} />
+                  {c.name}
+                </a>
+              );
+            })}
           </nav>
         )}
       </div>
 
-      <main className="flex flex-1 flex-col gap-8 px-4 py-6">
+      <main className="flex flex-1 flex-col gap-9 px-4 pt-4 pb-8 sm:px-6">
         {menu.categories.length === 0 && (
           <p className="py-16 text-center text-muted">O cardápio ainda está sendo preparado. Volte em instantes.</p>
         )}
@@ -106,23 +181,23 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
 
         {featured.length > 0 && (
           <section aria-labelledby="destaques">
-            <h2 id="destaques" className="mb-3 text-lg font-semibold">
+            <SectionTitle id="destaques" icon={<FlameIcon className="size-6" />}>
               Destaques
-            </h2>
-            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none]">
+            </SectionTitle>
+            <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:-mx-6 sm:px-6">
               {featured.map((p) => (
-                <FeaturedCard key={p.id} product={p} onOpen={() => setSelected(p)} />
+                <FeaturedCard key={p.id} product={p} single={featured.length === 1} onOpen={() => setSelected(p)} />
               ))}
             </div>
           </section>
         )}
 
         {categories.map((c) => (
-          <section key={c.id} id={`cat-${c.id}`} aria-labelledby={`h-${c.id}`} className="scroll-mt-32">
-            <h2 id={`h-${c.id}`} className="mb-3 text-lg font-semibold">
+          <section key={c.id} id={`cat-${c.id}`} aria-labelledby={`h-${c.id}`} className="scroll-mt-40">
+            <SectionTitle id={`h-${c.id}`} icon={<CategoryIcon name={c.name} className="size-6" />}>
               {c.name}
-            </h2>
-            <ul className="flex flex-col gap-3">
+            </SectionTitle>
+            <ul className="flex flex-col gap-4">
               {c.products.map((p) => (
                 <li key={p.id}>
                   <ProductCard product={p} onOpen={() => setSelected(p)} />
@@ -144,7 +219,7 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
       </footer>
 
       {table && cart.count > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-2xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-2xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={() => setCartOpen(true)}
@@ -186,52 +261,109 @@ function priceLabel(p: PublicProduct) {
   return varies ? `a partir de ${formatBRL(minPriceCents(p))}` : formatBRL(p.price_cents);
 }
 
+/** Título de seção: ícone + nome, com o traço da cor do tema embaixo. */
+function SectionTitle({ id, icon, children }: { id: string; icon: ReactNode; children: ReactNode }) {
+  return (
+    <h2 id={id} className="mb-4 flex items-center gap-2.5 text-xl font-bold sm:text-2xl">
+      <span className="flex flex-col items-center gap-1 text-brand-text">
+        {icon}
+        <span className="h-1 w-7 rounded-full bg-brand" />
+      </span>
+      <span className="flex flex-col gap-1">
+        {children}
+        <span className="h-1 w-full max-w-24 rounded-full bg-brand/60" />
+      </span>
+    </h2>
+  );
+}
+
+/** Selo de preço e botão "+" (visual: o card inteiro é o botão que abre o produto). */
+function Price({ product }: { product: PublicProduct }) {
+  return (
+    <span
+      style={{ borderRadius: "calc(var(--radius) * 0.6)" }}
+      className="inline-block bg-brand px-3 py-1 text-base font-bold text-brand-contrast shadow-[0_3px_10px_color-mix(in_srgb,var(--brand)_35%,transparent)] sm:text-lg"
+    >
+      {priceLabel(product)}
+    </span>
+  );
+}
+
+function AddMark() {
+  return (
+    <span
+      aria-hidden
+      className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand text-brand-contrast shadow-[0_4px_14px_color-mix(in_srgb,var(--brand)_45%,transparent)] transition group-hover:scale-110"
+    >
+      <PlusIcon className="size-5" />
+    </span>
+  );
+}
+
+const CARD =
+  "group relative flex w-full overflow-hidden border border-brand/45 bg-[linear-gradient(135deg,var(--surface),var(--surface-2))] text-left shadow-card transition hover:border-brand";
+
 function ProductCard({ product, onOpen }: { product: PublicProduct; onOpen: () => void }) {
   const img = imageUrl(product.image_path);
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      style={{ borderRadius: "var(--radius)" }}
-      className="flex w-full items-start gap-3 border border-border bg-surface p-3 text-left shadow-card transition hover:border-border-strong"
-    >
-      <div className="min-w-0 flex-1">
-        <p className="font-medium">{product.name}</p>
-        {product.description && <p className="mt-0.5 line-clamp-2 text-sm text-muted">{product.description}</p>}
-        <p className="mt-2 font-semibold">{priceLabel(product)}</p>
+    <button type="button" onClick={onOpen} style={{ borderRadius: "calc(var(--radius) * 1.5)" }} className={`${CARD} min-h-36`}>
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col p-4 sm:p-5">
+        <p className="text-lg font-bold">{product.name}</p>
+        {product.description && <p className="mt-1 line-clamp-2 text-sm text-muted sm:text-base">{product.description}</p>}
+        <div className="mt-auto flex items-end justify-between gap-3 pt-3">
+          <Price product={product} />
+          {!img && <AddMark />}
+        </div>
       </div>
       {img && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={img}
-          alt=""
-          loading="lazy"
-          style={{ borderRadius: "calc(var(--radius) * 0.75)" }}
-          className="size-24 shrink-0 object-cover"
-        />
+        <div className="relative w-32 shrink-0 sm:w-56">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={img}
+            alt=""
+            loading="lazy"
+            className="absolute inset-0 size-full object-cover transition duration-300 group-hover:scale-105 [mask-image:linear-gradient(to_right,transparent,black_35%)]"
+          />
+          <span className="absolute right-3 bottom-3 sm:right-auto sm:-left-2">
+            <AddMark />
+          </span>
+        </div>
       )}
     </button>
   );
 }
 
-function FeaturedCard({ product, onOpen }: { product: PublicProduct; onOpen: () => void }) {
+function FeaturedCard({ product, single, onOpen }: { product: PublicProduct; single: boolean; onOpen: () => void }) {
   const img = imageUrl(product.image_path);
   return (
     <button
       type="button"
       onClick={onOpen}
-      style={{ borderRadius: "var(--radius)" }}
-      className="flex w-40 shrink-0 flex-col overflow-hidden border border-border bg-surface text-left shadow-card"
+      style={{ borderRadius: "calc(var(--radius) * 1.5)" }}
+      className={`${CARD} min-h-40 shrink-0 snap-start ${single ? "" : "w-[88%] sm:w-[80%]"}`}
     >
-      <div className="aspect-square w-full bg-surface-2">
-        {img && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={img} alt="" loading="lazy" className="size-full object-cover" />
-        )}
-      </div>
-      <div className="p-2.5">
-        <p className="line-clamp-1 text-sm font-medium">{product.name}</p>
-        <p className="text-sm font-semibold">{priceLabel(product)}</p>
+      {img && (
+        <div className="relative w-2/5 shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={img}
+            alt=""
+            loading="lazy"
+            className="absolute inset-0 size-full object-cover transition duration-300 group-hover:scale-105 [mask-image:linear-gradient(to_left,transparent,black_35%)]"
+          />
+        </div>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col p-4 sm:p-5">
+        <span className="mb-1 inline-flex items-center gap-1 self-end rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-contrast">
+          <CrownIcon className="size-3.5" />
+          Destaque
+        </span>
+        <p className="text-lg font-bold sm:text-xl">{product.name}</p>
+        {product.description && <p className="mt-1 line-clamp-2 text-sm text-muted sm:text-base">{product.description}</p>}
+        <div className="mt-auto flex items-end justify-between gap-3 pt-3">
+          <Price product={product} />
+          <AddMark />
+        </div>
       </div>
     </button>
   );

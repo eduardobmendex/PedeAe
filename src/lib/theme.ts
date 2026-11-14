@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import { DEFAULT_THEME, identities, isThemeId, type ThemeId } from "./themes";
+import { DEFAULT_WALLPAPER, isWallpaperChoice, type WallpaperChoice } from "./wallpapers";
 
 // Opções aprovadas de tipografia e cantos (guardadas em organization_settings.settings).
 export const fonts = {
@@ -24,6 +25,8 @@ export type Branding = {
   accent_color: string;
   font: FontKey;
   corners: CornerKey;
+  /** Papel de parede do cardápio público (a cor segue o tema). */
+  wallpaper: WallpaperChoice;
 };
 
 export type BrandingRow = {
@@ -44,6 +47,7 @@ export const DEFAULT_BRANDING_ROW: BrandingRow = {
 export function brandingFrom(row: BrandingRow): Branding {
   const font = row.settings?.font;
   const corner = row.settings?.corners;
+  const wallpaper = row.settings?.wallpaper;
   return {
     theme: isThemeId(row.theme) ? row.theme : DEFAULT_THEME,
     custom_colors: row.settings?.custom_colors === true,
@@ -51,6 +55,7 @@ export function brandingFrom(row: BrandingRow): Branding {
     accent_color: row.accent_color,
     font: typeof font === "string" && font in fonts ? (font as FontKey) : "geist",
     corners: typeof corner === "string" && corner in corners ? (corner as CornerKey) : "rounded",
+    wallpaper: isWallpaperChoice(wallpaper) ? wallpaper : DEFAULT_WALLPAPER,
   };
 }
 

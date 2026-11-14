@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Badge, Button, ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requirePermission } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { formatBRL } from "@/lib/money";
 import { imageUrl } from "@/lib/storage";
 import { createClient } from "@/lib/supabase/server";
 import { publishCategories, toggleProductAvailable } from "./actions";
 import { CategoryManager } from "./category-manager";
+import { MenuTypeSwitcher } from "./menu-type-switcher";
 
 export const metadata: Metadata = { title: "Cardápio" };
 
@@ -14,10 +16,12 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/pai
   const { slug } = await params;
   const { importado } = await searchParams;
   const importedCount = typeof importado === "string" ? Number.parseInt(importado, 10) : NaN;
-  const { organization } = await requirePermission(slug, "manage_menu");
+  const { organization, membership } = await requirePermission(slug, "manage_menu");
+  // Trocar o tipo mexe no cardápio e no visual: precisa das duas permissões.
+  const canSwitchType = can(membership, "manage_theme");
   const supabase = await createClient();
 
-  const [{ data: categories }, { data: products }] = await Promise.all([
+  const [{ data: categories }, { data: products }, { data: types }, { data: settings }] = await Promise.all([
     supabase
       .from("categories")
       .select("id, name, active, sort_order")
@@ -30,7 +34,10 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/pai
       .eq("organization_id", organization.id)
       .order("sort_order")
       .order("name"),
+    supabase.from("establishment_types").select("id, name, description").order("sort_order"),
+    supabase.from("organization_settings").select("settings").eq("organization_id", organization.id).single(),
   ]);
+  const currentType = (settings?.settings as Record<string, unknown> | null)?.establishment_type;
 
   const cats = categories ?? [];
   const byCategory = new Map<string, NonNullable<typeof products>>();
@@ -73,6 +80,10 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/pai
             <Button type="submit">Publicar todas</Button>
           </form>
         </div>
+      )}
+
+      {canSwitchType && (types?.length ?? 0) > 0 && (
+        <MenuTypeSwitcher slug={slug} types={types ?? []} current={typeof currentType === "string" ? currentType : null} />
       )}
 
       <div className="grid items-start gap-6 lg:grid-cols-[18rem_1fr]">

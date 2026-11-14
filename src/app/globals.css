@@ -80,3 +80,7 @@ body {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+
+.container-cardapio {
+  max-width: calc(100vw - 714px);
+}

@@ -276,3 +276,30 @@ export async function publishCategories(slug: string, categoryId: string | null)
 
   refresh(slug);
 }
+
+// ---------------------------------------------------------------- Tipo do cardápio
+
+export type SwitchTypeResult = { ok: true; imported: number; published: number } | { ok: false; error: string };
+
+/**
+ * Troca o tipo do cardápio (ex.: pizzaria → bar): publica os produtos padrão do tipo alvo,
+ * oculta o resto (sem apagar nada) e ajusta o papel de parede. Validação e permissão no banco.
+ */
+export async function switchMenuType(slug: string, type: unknown): Promise<SwitchTypeResult> {
+  const { organization } = await requirePermission(slug, "manage_menu");
+  const parsed = z.string().regex(/^[a-z0-9-]+$/).safeParse(type);
+  if (!parsed.success) return { ok: false, error: "Tipo inválido." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("switch_menu_type", { p_org_id: organization.id, p_type: parsed.data });
+  if (error) {
+    if (error.message.includes("invalid_type") || error.message.includes("empty_type"))
+      return { ok: false, error: "Tipo de cardápio indisponível." };
+    return { ok: false, error: friendlyDbError(error.message) };
+  }
+
+  refresh(slug);
+  revalidatePath(`/painel/${slug}/configuracoes`);
+  const result = data as { imported: number; categories_published: number };
+  return { ok: true, imported: result.imported, published: result.categories_published };
+}

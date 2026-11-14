@@ -6,6 +6,7 @@ import { MENU_BUCKET } from "@/lib/storage";
 import { friendlyDbError, requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isThemeId } from "@/lib/themes";
+import { isWallpaperChoice } from "@/lib/wallpapers";
 import { brandingSchema } from "@/lib/validation";
 import type { FormState } from "@/lib/form-state";
 
@@ -96,4 +97,17 @@ export async function saveIdentity(slug: string, theme: unknown): Promise<FormSt
   updateTag(menuTag(slug));
   revalidatePath(`/painel/${slug}`, "layout");
   return undefined;
+}
+
+/** Salva o papel de parede do cardápio. Mesma permissão da identidade visual. */
+export async function saveWallpaper(slug: string, wallpaper: unknown): Promise<FormState> {
+  const { organization } = await requirePermission(slug, "manage_theme");
+  if (!isWallpaperChoice(wallpaper)) return { error: "Papel de parede inválido." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_organization_wallpaper", { p_org_id: organization.id, p_wallpaper: wallpaper });
+  if (error) return { error: friendlyDbError(error.message) };
+
+  updateTag(menuTag(slug));
+  return { success: "Papel de parede salvo." };
 }

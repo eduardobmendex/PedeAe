@@ -1,6 +1,8 @@
 // Registro das identidades visuais: ÚNICA fonte das cores da aplicação.
 // Para criar uma identidade, adicione um item em `identities`. O CSS, o seletor,
 // a persistência e os testes de contraste derivam daqui, sem tocar em componentes.
+import { wallpaperStyles, wallpaperUrl } from "./wallpapers";
+
 // (O banco também lista os ids aceitos: organization_settings_theme_check.)
 
 export type IdentityTokens = {
@@ -128,7 +130,7 @@ export const DEFAULT_THEME: ThemeId = "white";
 
 export const isThemeId = (value: unknown): value is ThemeId => typeof value === "string" && value in identities;
 
-function tokensToCss(t: IdentityTokens) {
+function tokensToCss(id: ThemeId, t: IdentityTokens) {
   return [
     `color-scheme:${t.scheme}`,
     `--bg:${t.bg}`,
@@ -152,6 +154,7 @@ function tokensToCss(t: IdentityTokens) {
     `--info:${t.info}`,
     `--info-soft:${t.infoSoft}`,
     `--shadow:${t.shadow}`,
+    ...wallpaperStyles.map((style) => `--wallpaper-${style}:url("${wallpaperUrl(style, id)}")`),
   ].join(";");
 }
 
@@ -160,6 +163,6 @@ export const identitiesCss = themeIds
   .map((id) => {
     // :where() zera a prioridade do padrão: <html data-theme="dark"> precisa vencer o :root.
     const selector = id === DEFAULT_THEME ? `:where(:root),[data-theme="${id}"]` : `[data-theme="${id}"]`;
-    return `${selector}{${tokensToCss(identities[id].tokens)}}`;
+    return `${selector}{${tokensToCss(id, identities[id].tokens)}}`;
   })
   .join("\n");

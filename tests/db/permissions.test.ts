@@ -118,4 +118,34 @@ describe("matriz de permissões", () => {
       expect(await db.expectError(setTheme, [orgA, "azul"])).toMatch(/check constraint/);
       expect(await theme()).toBe("red");
     }));
+  it("papel de parede: supervisor escolhe, funcionário não; estilo fora da lista é recusado", () =>
+    withRollback(async (db) => {
+      const ana = await db.createUser("ana");
+      const sara = await db.createUser("sara");
+      const carla = await db.createUser("carla");
+      const orgA = await db.createOrg(ana, "Loja A");
+
+      await db.as(await db.getPlatformAdmin());
+      await db.query("select public.platform_create_member($1, $2, '', '', 'supervisor')", [orgA, sara.email]);
+      await db.query("select public.platform_create_member($1, $2, '', '', 'staff')", [orgA, carla.email]);
+      const wallpaper = async () => {
+        await db.asSuperuser();
+        return (await db.query<{ w: string }>("select settings->>'wallpaper' as w from organization_settings where organization_id = $1", [orgA]))[0].w;
+      };
+      const setWallpaper = "select public.set_organization_wallpaper($1, $2)";
+
+      await db.as(sara);
+      await db.query(setWallpaper, [orgA, "pizzaria"]);
+      expect(await wallpaper()).toBe("pizzaria");
+
+      await db.as(carla);
+      expect(await db.expectError(setWallpaper, [orgA, "bar"])).toMatch(/forbidden/);
+      await db.as(null);
+      expect(await db.expectError(setWallpaper, [orgA, "bar"])).toMatch(/permission denied/);
+
+      await db.as(await db.getPlatformAdmin());
+      await db.query(setWallpaper, [orgA, "none"]);
+      expect(await db.expectError(setWallpaper, [orgA, "praia"])).toMatch(/invalid wallpaper/);
+      expect(await wallpaper()).toBe("none");
+    }));
 });
