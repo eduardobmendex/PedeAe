@@ -32,7 +32,7 @@ async function OrgFrame({ params, children }: { params: Params; children: ReactN
         orgName={organization.name}
         roleLabel={isPlatformAdmin ? "Admin da plataforma" : roleLabels[membership.role]}
         email={user?.email ?? ""}
-        items={navFor(slug, membership)}
+        items={navFor(slug, membership, { platformAdmin: isPlatformAdmin })}
         signOutAction={signOut}
       />
       <main className="w-full min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8 print:p-0">

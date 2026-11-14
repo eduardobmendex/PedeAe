@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { Header } from "@/components/header";
-import { Card } from "@/components/ui";
+import { Card, Skeleton } from "@/components/ui";
 import { isPlatformAdmin, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { roleLabels, type MemberRole } from "@/lib/validation";
@@ -9,7 +10,24 @@ import { PlatformHome } from "./platform-home";
 
 export const metadata: Metadata = { title: "Meus estabelecimentos" };
 
-export default async function PainelPage() {
+// Tudo aqui depende da sessão: fica atrás de <Suspense> para a navegação não bloquear.
+export default function PainelPage() {
+  return (
+    <Suspense
+      fallback={
+        <main aria-busy="true" className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-8">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </main>
+      }
+    >
+      <PainelContent />
+    </Suspense>
+  );
+}
+
+async function PainelContent() {
   const user = await requireUser();
   if (await isPlatformAdmin()) {
     return (
