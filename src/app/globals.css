@@ -81,6 +81,16 @@ body {
   outline-offset: 2px;
 }
 
+/*
+ * Coluna do cardápio público. Celular: largura toda. A partir do tablet: ocupa o centro liso
+ * do papel de parede (as artes laterais somam ~714px), nunca menos que 42rem — sem esse piso,
+ * telas com menos de 714px davam largura negativa e a coluna sumia.
+ */
 .container-cardapio {
-  max-width: calc(100vw - 714px);
+  max-width: 100%;
+}
+@media (min-width: 768px) {
+  .container-cardapio {
+    max-width: max(42rem, calc(100vw - 714px));
+  }
 }

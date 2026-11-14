@@ -219,7 +219,7 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
       </footer>
 
       {table && cart.count > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-2xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="container-cardapio fixed inset-x-0 bottom-0 z-30 mx-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={() => setCartOpen(true)}
