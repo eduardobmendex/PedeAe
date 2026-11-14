@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AutoRefresh } from "@/components/auto-refresh";
+import { OrdersLive } from "@/components/orders-live";
 import { Badge, ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
 import { getOrgContext } from "@/lib/auth";
 import { formatBRL } from "@/lib/money";
@@ -95,12 +95,12 @@ export default async function OrgDashboardPage({ params }: PageProps<"/painel/[s
 
   return (
     <>
-      <AutoRefresh active intervalMs={15000} />
       <PageHeader
         title={organization.name}
-        description="Visão de hoje. Atualiza a cada 15 s."
+        description="Visão de hoje. Pedidos chegam em tempo real."
         actions={
           <>
+            {can(membership, "view_orders") && <OrdersLive orgId={organization.id} />}
             <ButtonLink href={`/m/${slug}`} target="_blank" variant="secondary">
               Ver cardápio público
             </ButtonLink>

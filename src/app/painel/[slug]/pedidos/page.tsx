@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AutoRefresh } from "@/components/auto-refresh";
+import { OrdersLive } from "@/components/orders-live";
 import { ButtonLink, EmptyState, PageHeader } from "@/components/ui";
 import { requirePermission } from "@/lib/auth";
 import { formatBRL } from "@/lib/money";
@@ -71,16 +71,18 @@ export default async function OrdersPage({ params, searchParams }: PageProps<"/p
 
   return (
     <>
-      <AutoRefresh active intervalMs={15000} />
       <PageHeader
         title="Pedidos"
         description={
           filter === "ativos"
-            ? `${orders.length} em andamento${pending ? ` · ${pending} aguardando confirmação` : ""}. Atualiza a cada 15 s.`
+            ? `${orders.length} em andamento${pending ? ` · ${pending} aguardando confirmação` : ""}.`
             : `${orders.length} pedido(s) · ${formatBRL(totalShown)}`
         }
         actions={
-          can(membership, "create_manual_order") && <ButtonLink href={`/painel/${slug}/pedidos/novo`}>Lançar pedido</ButtonLink>
+          <>
+            <OrdersLive orgId={organization.id} />
+            {can(membership, "create_manual_order") && <ButtonLink href={`/painel/${slug}/pedidos/novo`}>Lançar pedido</ButtonLink>}
+          </>
         }
       />
 

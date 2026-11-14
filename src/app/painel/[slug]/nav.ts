@@ -14,7 +14,7 @@ type NavDef = {
 const NAV: NavDef[] = [
   { path: "", label: "Início", anyOf: [] },
   { path: "/pedidos", label: "Pedidos", anyOf: ["view_orders"] },
-  { path: "/cozinha", label: "Cozinha", anyOf: ["view_orders"], soon: true },
+  { path: "/cozinha", label: "Cozinha", anyOf: ["view_orders"] },
   { path: "/mesas", label: "Mesas", anyOf: ["manage_tables"] },
   { path: "/cardapio", label: "Cardápio", anyOf: ["manage_menu"] },
   { path: "/qrcodes", label: "QR Codes", anyOf: ["manage_tables"] },
