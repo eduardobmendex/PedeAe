@@ -3,7 +3,7 @@
 // então trocar DARK/RED/WHITE troca a imagem na hora, sem recarregar.
 //
 // Arquivos: public/wallpapers/<estilo>-<tema>.webp, gerados a partir de
-// public/theme_moldura/ por `node scripts/build-wallpapers.mjs`.
+// assets/theme_moldura/ por `node scripts/build-wallpapers.mjs`.
 // O banco também lista os estilos aceitos (set_organization_wallpaper).
 
 export const wallpapers = {

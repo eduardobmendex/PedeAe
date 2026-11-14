@@ -1,10 +1,10 @@
-// Converte os papéis de parede de public/theme_moldura (PNG, fonte) em WebP otimizado
+// Converte os papéis de parede de assets/theme_moldura (PNG, fonte; fora de public/, não vai para o site) em WebP otimizado
 // em public/wallpapers/<estilo>-<tema>.webp. Rode: node scripts/build-wallpapers.mjs
 import { mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
 
-const SRC = "public/theme_moldura";
+const SRC = "assets/theme_moldura";
 const OUT = "public/wallpapers";
 // Nome do arquivo → identidade visual (black → dark, light → white).
 const COLORS = { black: "dark", red: "red", white: "white", light: "white" };
