@@ -72,10 +72,10 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
   // Estrutura única para DARK, RED e WHITE: só tokens do tema (brand, surface, text...), nada fixo por tema.
   return (
     <div
-      className="relative z-10 mx-auto flex min-h-dvh w-full container-cardapio flex-col bg-bg md:my-6 md:rounded-[calc(var(--radius)*2)] md:min-h-[calc(100dvh-3rem)] md:overflow-clip md:border md:border-brand/35 md:shadow-[0_0_60px_rgb(0_0_0/0.45)]"
+      className="@container relative z-10 mx-auto flex min-h-dvh w-full container-cardapio flex-col bg-bg lg:my-6 lg:min-h-[calc(100dvh-3rem)] lg:overflow-clip lg:rounded-[calc(var(--radius)*2)] lg:border lg:border-brand/35 lg:shadow-[0_0_60px_rgb(0_0_0/0.45)]"
     >
       <header
-        className="relative overflow-hidden px-5 pt-12 pb-12 text-brand-contrast sm:px-8"
+        className="relative overflow-hidden px-4 pt-8 pb-10 text-brand-contrast sm:px-8 sm:pt-12 sm:pb-12"
         style={{
           background: cover
             ? `linear-gradient(to top, rgb(0 0 0 / 0.75), rgb(0 0 0 / 0.2)), url(${cover}) center / cover`
@@ -90,25 +90,25 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
         />
         <ChefHatIcon className="pointer-events-none absolute top-6 right-6 hidden size-20 -rotate-12 opacity-25 sm:block" />
 
-        <div className="relative flex items-center gap-4 sm:gap-5">
+        <div className="relative flex items-center gap-3 sm:gap-5">
           {logo && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logo}
               alt=""
-              className="size-20 shrink-0 rounded-full border-[3px] border-white/85 bg-surface object-cover shadow-lg sm:size-24"
+              className="size-16 shrink-0 rounded-full border-[3px] border-white/85 bg-surface object-cover shadow-lg sm:size-24"
             />
           )}
-          {logo && <span aria-hidden className="h-16 w-px shrink-0 bg-current opacity-40" />}
+          {logo && <span aria-hidden className="h-12 w-px shrink-0 bg-current opacity-40 sm:h-16" />}
           <div className="min-w-0">
             {/* Lettering só no nome: logotipo e fonte escolhida pelo estabelecimento seguem como estão. */}
             <h1
-              className="line-clamp-2 -rotate-1 text-3xl leading-tight [text-shadow:0_2px_0_rgb(0_0_0/0.18)] sm:text-4xl"
+              className="line-clamp-2 -rotate-1 text-2xl leading-tight break-words [text-shadow:0_2px_0_rgb(0_0_0/0.18)] sm:text-4xl"
               style={{ fontFamily: "var(--font-permanent-marker), var(--font-geist-sans), cursive" }}
             >
               {menu.organization.name}
             </h1>
-            <p className="mt-1 text-xs font-medium tracking-[0.3em] uppercase opacity-90">
+            <p className="mt-1 text-[11px] font-medium tracking-[0.2em] uppercase opacity-90 sm:text-xs sm:tracking-[0.3em]">
               {tableName ? `Você está na ${tableName}` : "Cardápio digital"}
             </p>
           </div>
@@ -184,7 +184,7 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
             <SectionTitle id="destaques" icon={<FlameIcon className="size-6" />}>
               Destaques
             </SectionTitle>
-            <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:-mx-6 sm:px-6">
+            <div className="-mx-4 flex scroll-px-4 snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:-mx-6 sm:scroll-px-6 sm:px-6">
               {featured.map((p) => (
                 <FeaturedCard key={p.id} product={p} single={featured.length === 1} onOpen={() => setSelected(p)} />
               ))}
@@ -197,7 +197,7 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
             <SectionTitle id={`h-${c.id}`} icon={<CategoryIcon name={c.name} className="size-6" />}>
               {c.name}
             </SectionTitle>
-            <ul className="flex flex-col gap-4">
+            <ul className="grid gap-4 @3xl:grid-cols-2">
               {c.products.map((p) => (
                 <li key={p.id}>
                   <ProductCard product={p} onOpen={() => setSelected(p)} />
@@ -316,7 +316,7 @@ function ProductCard({ product, onOpen }: { product: PublicProduct; onOpen: () =
         </div>
       </div>
       {img && (
-        <div className="relative w-32 shrink-0 sm:w-56">
+        <div className="relative w-[38%] max-w-56 min-w-28 shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={img}
@@ -340,7 +340,7 @@ function FeaturedCard({ product, single, onOpen }: { product: PublicProduct; sin
       type="button"
       onClick={onOpen}
       style={{ borderRadius: "calc(var(--radius) * 1.5)" }}
-      className={`${CARD} min-h-40 shrink-0 snap-start ${single ? "" : "w-[88%] sm:w-[80%]"}`}
+      className={`${CARD} min-h-40 shrink-0 snap-start ${single ? "" : "w-[88%] @xl:w-[75%] @3xl:w-[calc(50%-0.375rem)]"}`}
     >
       {img && (
         <div className="relative w-2/5 shrink-0">
