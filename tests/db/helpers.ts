@@ -11,7 +11,9 @@ export async function withRollback(fn: (db: Db) => Promise<void>) {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL não definida (.env)");
 
-  const client = new Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
+  // Supabase local (CI) não usa SSL; o projeto na nuvem exige.
+  const local = /@(127.0.0.1|localhost)[:/]/.test(url);
+  const client = new Client({ connectionString: url, ssl: local ? undefined : { rejectUnauthorized: false } });
   await client.connect();
   try {
     await client.query("begin");
