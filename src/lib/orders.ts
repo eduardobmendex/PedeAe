@@ -67,11 +67,18 @@ export const orderItemsSchema = z
   .min(1, "Seu carrinho está vazio")
   .max(50, "Pedido com itens demais");
 
+export const couponCodeSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z0-9_-]{3,20}$/, "Cupom inválido");
+
 export const orderPayloadSchema = z.object({
   items: orderItemsSchema,
   customerName: z.string().trim().max(60),
   notes: z.string().trim().max(280),
   idempotencyKey: z.string().uuid(),
+  couponCode: couponCodeSchema.optional(),
 });
 export type OrderPayload = z.infer<typeof orderPayloadSchema>;
 
@@ -80,11 +87,29 @@ export type PlaceOrderResult =
   | { ok: false; error: string; retryable?: boolean };
 
 /** Mensagens para os erros de negócio do banco. */
+/** Mensagem amigável para os erros de cupom do banco (null se não for erro de cupom). */
+export function couponErrorMessage(message: string): string | null {
+  if (message.includes("coupon_invalid")) return "Cupom não encontrado ou desativado.";
+  if (message.includes("coupon_expired")) return "Este cupom está fora da validade.";
+  if (message.includes("coupon_exhausted")) return "Este cupom já atingiu o limite de usos.";
+  if (message.includes("coupon_min_order")) {
+    const min = Number(/coupon_min_order[^0-9]*(d+)/.exec(message)?.[1]);
+    return Number.isFinite(min) && min > 0
+      ? `Este cupom vale para pedidos a partir de R$ ${(min / 100).toFixed(2).replace(".", ",")}.`
+      : "O pedido não atingiu o valor mínimo do cupom.";
+  }
+  return null;
+}
+
 export function orderErrorMessage(message: string): { error: string; retryable?: boolean } {
   if (message.includes("product_unavailable"))
     return { error: "Um dos produtos acabou de ficar indisponível. Revise o carrinho." };
   if (message.includes("option_unavailable") || message.includes("invalid_options"))
     return { error: "Algum adicional mudou ou ficou indisponível. Remova o item e adicione de novo." };
+  const sold = message.includes("product_sold_out");
+  if (sold) return { error: "Um dos produtos acabou de esgotar. Remova-o do carrinho para continuar." };
+  const coupon = couponErrorMessage(message);
+  if (coupon) return { error: coupon };
   if (message.includes("table_invalid")) return { error: "Este QR Code não está mais ativo. Chame um atendente." };
   if (message.includes("rate_limited")) return { error: "Muitos pedidos em pouco tempo. Aguarde alguns minutos." };
   if (message.includes("forbidden")) return { error: "Você não tem permissão para esta ação." };

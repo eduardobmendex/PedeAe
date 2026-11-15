@@ -303,3 +303,12 @@ export async function switchMenuType(slug: string, type: unknown): Promise<Switc
   const result = data as { imported: number; categories_published: number };
   return { ok: true, imported: result.imported, published: result.categories_published };
 }
+
+/** Esgotado com um toque, pela lista do cardápio. */
+export async function toggleProductSoldOut(slug: string, productId: string, soldOut: boolean) {
+  await requirePermission(slug, "manage_menu");
+  if (!/^[0-9a-f-]{36}$/.test(productId)) return;
+  const supabase = await createClient();
+  await supabase.rpc("set_product_sold_out", { p_product_id: productId, p_sold_out: soldOut });
+  refresh(slug);
+}

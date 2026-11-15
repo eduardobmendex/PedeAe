@@ -15,7 +15,7 @@ export type Shop = {
 };
 
 const ORG_TABLES = [
-  "billing_payments", "organization_billing", "order_item_options", "order_items", "order_events", "orders",
+  "service_calls", "tab_payments", "coupons", "billing_payments", "organization_billing", "order_item_options", "order_items", "order_events", "orders",
   "table_sessions", "order_counters", "table_qr_codes", "tables", "product_option_items", "product_options",
   "products", "categories", "invitations", "memberships", "audit_logs", "organization_settings",
 ];
@@ -71,6 +71,16 @@ async function createShop(): Promise<Shop & { userId: string }> {
   } catch (error) {
     await db.query("rollback").catch(() => {});
     throw error;
+  } finally {
+    await db.end();
+  }
+}
+
+/** Acesso direto ao banco nos testes (ex.: criar um cupom). */
+export async function sql<T = Record<string, unknown>>(text: string, values: unknown[] = []): Promise<T[]> {
+  const db = await connect();
+  try {
+    return (await db.query(text, values)).rows as T[];
   } finally {
     await db.end();
   }

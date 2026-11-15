@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { OrdersLive } from "@/components/orders-live";
+import { SoldOutPanel, type StockProduct } from "@/components/sold-out-panel";
 import { requirePermission } from "@/lib/auth";
 import type { OrderStatus } from "@/lib/orders";
 import { createClient } from "@/lib/supabase/server";
@@ -16,7 +17,7 @@ export default async function KitchenPage({ params }: PageProps<"/painel/[slug]/
   const { organization } = await requirePermission(slug, "view_orders");
   const supabase = await createClient();
 
-  const [{ data }, { count: awaiting }] = await Promise.all([
+  const [{ data }, { count: awaiting }, { data: stock }] = await Promise.all([
     supabase
       .from("orders")
       .select(
@@ -33,7 +34,19 @@ export default async function KitchenPage({ params }: PageProps<"/painel/[slug]/
       .select("id", { count: "exact", head: true })
       .eq("organization_id", organization.id)
       .eq("status", "pending_confirmation"),
+    // Produtos à venda (categorias publicadas), para marcar esgotado.
+    supabase
+      .from("products")
+      .select("id, name, sold_out, categories!inner (name, active, sort_order)")
+      .eq("organization_id", organization.id)
+      .eq("available", true)
+      .eq("categories.active", true)
+      .order("name"),
   ]);
+  type StockRow = { id: string; name: string; sold_out: boolean; categories: { name: string; sort_order: number } };
+  const products: StockProduct[] = ((stock ?? []) as unknown as StockRow[])
+    .sort((a, b) => a.categories.sort_order - b.categories.sort_order || a.name.localeCompare(b.name))
+    .map((p) => ({ id: p.id, name: p.name, category: p.categories.name, sold_out: p.sold_out }));
 
   const orders: KitchenOrder[] = (data ?? []).map((o) => ({
     id: o.id,
@@ -75,6 +88,8 @@ export default async function KitchenPage({ params }: PageProps<"/painel/[slug]/
       )}
 
       <KitchenBoard slug={slug} orders={orders} />
+
+      {products.length > 0 && <SoldOutPanel slug={slug} products={products} />}
     </div>
   );
 }

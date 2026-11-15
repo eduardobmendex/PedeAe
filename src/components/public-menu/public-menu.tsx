@@ -10,6 +10,7 @@ import { imageUrl } from "@/lib/storage";
 import { CartSheet } from "./cart-sheet";
 import { CategoryIcon, ChefHatIcon, CrownIcon, FlameIcon, PlusIcon, SearchIcon } from "./menu-icons";
 import { ProductSheet } from "./product-sheet";
+import { ServiceButtons } from "./service-buttons";
 
 const normalize = (s: string) =>
   s
@@ -129,6 +130,8 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
         )}
       </header>
 
+      {table && <ServiceButtons tableToken={table.token} tableName={table.name} />}
+
       <div className="sticky top-0 z-20 bg-bg/95 px-4 pt-2 pb-3 backdrop-blur sm:px-6">
         <label className="relative block">
           <span className="sr-only">Buscar no cardápio</span>
@@ -238,8 +241,8 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
       <ProductSheet
         product={selected}
         onClose={() => setSelected(null)}
-        onAdd={table ? (line) => cart.add(line) : undefined}
-        disabledReason="Peça pelo QR Code da mesa"
+        onAdd={table && !selected?.sold_out ? (line) => cart.add(line) : undefined}
+        disabledReason={selected?.sold_out ? "Esgotado no momento" : "Peça pelo QR Code da mesa"}
       />
       {table && (
         <CartSheet
@@ -279,6 +282,16 @@ function SectionTitle({ id, icon, children }: { id: string; icon: ReactNode; chi
 
 /** Selo de preço e botão "+" (visual: o card inteiro é o botão que abre o produto). */
 function Price({ product }: { product: PublicProduct }) {
+  if (product.sold_out) {
+    return (
+      <span
+        style={{ borderRadius: "calc(var(--radius) * 0.6)" }}
+        className="inline-block border border-border-strong bg-surface-2 px-3 py-1 text-sm font-bold tracking-wide text-muted uppercase"
+      >
+        Esgotado
+      </span>
+    );
+  }
   return (
     <span
       style={{ borderRadius: "calc(var(--radius) * 0.6)" }}
@@ -302,17 +315,19 @@ function AddMark() {
 
 const CARD =
   "group relative flex w-full overflow-hidden border border-brand/45 bg-[linear-gradient(135deg,var(--surface),var(--surface-2))] text-left shadow-card transition hover:border-brand";
+/** Esgotado: cinza e sem destaque, mas ainda visível (o cliente sabe que existe). */
+const SOLD_OUT = "opacity-60 grayscale border-border hover:border-border";
 
 function ProductCard({ product, onOpen }: { product: PublicProduct; onOpen: () => void }) {
   const img = imageUrl(product.image_path);
   return (
-    <button type="button" onClick={onOpen} style={{ borderRadius: "calc(var(--radius) * 1.5)" }} className={`${CARD} min-h-36`}>
+    <button type="button" onClick={onOpen} style={{ borderRadius: "calc(var(--radius) * 1.5)" }} className={`${CARD} min-h-36 ${product.sold_out ? SOLD_OUT : ""}`}>
       <div className="relative z-10 flex min-w-0 flex-1 flex-col p-4 sm:p-5">
         <p className="text-lg font-bold">{product.name}</p>
         {product.description && <p className="mt-1 line-clamp-2 text-sm text-muted sm:text-base">{product.description}</p>}
         <div className="mt-auto flex items-end justify-between gap-3 pt-3">
           <Price product={product} />
-          {!img && <AddMark />}
+          {!img && !product.sold_out && <AddMark />}
         </div>
       </div>
       {img && (
@@ -324,9 +339,11 @@ function ProductCard({ product, onOpen }: { product: PublicProduct; onOpen: () =
             loading="lazy"
             className="absolute inset-0 size-full object-cover transition duration-300 group-hover:scale-105 [mask-image:linear-gradient(to_right,transparent,black_35%)]"
           />
-          <span className="absolute right-3 bottom-3 sm:right-auto sm:-left-2">
-            <AddMark />
-          </span>
+          {!product.sold_out && (
+            <span className="absolute right-3 bottom-3 sm:right-auto sm:-left-2">
+              <AddMark />
+            </span>
+          )}
         </div>
       )}
     </button>
@@ -340,7 +357,7 @@ function FeaturedCard({ product, single, onOpen }: { product: PublicProduct; sin
       type="button"
       onClick={onOpen}
       style={{ borderRadius: "calc(var(--radius) * 1.5)" }}
-      className={`${CARD} min-h-40 shrink-0 snap-start ${single ? "" : "w-[88%] @xl:w-[75%] @3xl:w-[calc(50%-0.375rem)]"}`}
+      className={`${CARD} min-h-40 shrink-0 snap-start ${single ? "" : "w-[88%] @xl:w-[75%] @3xl:w-[calc(50%-0.375rem)]"} ${product.sold_out ? SOLD_OUT : ""}`}
     >
       {img && (
         <div className="relative w-2/5 shrink-0">
@@ -362,7 +379,7 @@ function FeaturedCard({ product, single, onOpen }: { product: PublicProduct; sin
         {product.description && <p className="mt-1 line-clamp-2 text-sm text-muted sm:text-base">{product.description}</p>}
         <div className="mt-auto flex items-end justify-between gap-3 pt-3">
           <Price product={product} />
-          <AddMark />
+          {!product.sold_out && <AddMark />}
         </div>
       </div>
     </button>

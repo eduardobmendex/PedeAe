@@ -26,11 +26,11 @@ export type AuditCategory = keyof typeof auditCategories;
 
 /** Prefixos de `action` de cada categoria (para filtrar no banco). */
 export const categoryPrefixes: Record<AuditCategory, string[]> = {
-  cardapio: ["products.", "categories.", "product_options.", "catalog.", "menu."],
+  cardapio: ["products.", "categories.", "product_options.", "catalog.", "menu.", "coupons."],
   mesas: ["tables.", "table_qr."],
   equipe: ["membership.", "invitation."],
   visual: ["settings.", "organization."],
-  pedidos: ["order."],
+  pedidos: ["order.", "tab."],
   assinatura: ["billing."],
 };
 
@@ -51,6 +51,11 @@ const FIELD_LABELS: Record<string, string> = {
   available: "Disponível",
   active: "Ativo",
   featured: "Destaque",
+  sold_out: "Esgotado",
+  code: "Código",
+  value: "Valor",
+  max_uses: "Limite de usos",
+  valid_until: "Válido até",
   image_path: "Foto",
   category_id: "Categoria",
   sort_order: "Ordem",
@@ -106,13 +111,13 @@ export function describeChanges(metadata: Record<string, unknown>): string[] {
   return lines;
 }
 
-const ENTITY: Record<string, string> = { products: "o produto", categories: "a categoria", tables: "a mesa" };
+const ENTITY: Record<string, string> = { products: "o produto", categories: "a categoria", tables: "a mesa", coupons: "o cupom" };
 const OP: Record<string, string> = { insert: "Criou", update: "Alterou", delete: "Excluiu" };
 
 /** Título e detalhes de um registro. `name` é o nome atual da entidade, quando ainda existe. */
 export function describeAudit(entry: AuditEntry, name?: string): { title: string; details: string[] } {
   const m = entry.metadata ?? {};
-  const label = name ?? (typeof m.name === "string" ? m.name : undefined);
+  const label = name ?? (typeof m.name === "string" ? m.name : typeof m.code === "string" ? m.code : undefined);
   const named = (s: string) => (label ? `${s} ${label}` : s);
   const [prefix, op] = entry.action.split(".");
 
@@ -159,6 +164,15 @@ export function describeAudit(entry: AuditEntry, name?: string): { title: string
       if (m.note) details.push(`Motivo: ${m.note}`);
       return { title: `${entry.action === "order.cancelled" ? "Cancelou" : "Recusou"} o pedido #${m.order_number ?? ""}`, details };
     }
+    case "tab.payment_recorded":
+      return { title: "Registrou um pagamento na conta da mesa", details: [`Valor: ${formatBRL(Number(m.amount_cents ?? 0))}`, `Forma: ${m.method}`] };
+    case "tab.payment_deleted":
+      return { title: "Excluiu um pagamento da conta da mesa", details: [`Valor: ${formatBRL(Number(m.amount_cents ?? 0))}`] };
+    case "tab.closed":
+      return {
+        title: "Fechou a conta de uma mesa",
+        details: [`Total: ${formatBRL(Number(m.total_cents ?? 0))}`, `Taxa de serviço: ${formatBRL(Number(m.service_fee_cents ?? 0))}`],
+      };
     case "billing.updated":
       return { title: "Alterou o plano da assinatura", details: [`Plano: ${m.plan}`, `Mensalidade: ${formatBRL(Number(m.monthly_price_cents ?? 0))}`] };
     case "billing.payment_recorded":

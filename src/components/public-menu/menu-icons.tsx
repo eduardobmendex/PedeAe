@@ -47,6 +47,20 @@ export const FlameIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const BellIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z" />
+    <path d="M10 20.5a2 2 0 0 0 4 0M12 3v2" />
+  </Icon>
+);
+
+export const ReceiptIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21Z" />
+    <path d="M9 8h6M9 12h6M9 16h3" />
+  </Icon>
+);
+
 export const ChefHatIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M7 14.5A4 4 0 0 1 6.2 6.6a5 5 0 0 1 9.6-1.4 4 4 0 0 1 1.2 7.9V20H7Z" />

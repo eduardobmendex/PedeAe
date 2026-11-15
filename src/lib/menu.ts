@@ -18,6 +18,8 @@ export type PublicProduct = {
   price_cents: number;
   image_path: string | null;
   featured: boolean;
+  /** Visível, mas não pode ser pedido agora. */
+  sold_out?: boolean;
   options: PublicOption[];
 };
 export type PublicCategory = { id: string; name: string; products: PublicProduct[] };

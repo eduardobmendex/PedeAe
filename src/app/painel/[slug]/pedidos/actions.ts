@@ -34,6 +34,7 @@ export async function createManualOrder(slug: string, tableId: string | null, pa
     p_customer_name: parsed.data.customerName,
     p_notes: parsed.data.notes,
     p_idempotency_key: parsed.data.idempotencyKey,
+    p_coupon_code: parsed.data.couponCode ?? null,
   });
   if (error) return { ok: false, ...orderErrorMessage(error.message) };
 

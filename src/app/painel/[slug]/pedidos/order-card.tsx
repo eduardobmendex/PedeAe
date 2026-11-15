@@ -55,7 +55,17 @@ export function OrderCard({ slug, order, canCancel }: { slug: string; order: Pan
       {order.notes && <p className="rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning">{order.notes}</p>}
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-        <span className="font-semibold">{formatBRL(order.total_cents)}</span>
+        <span className="flex items-center gap-2">
+          <span className="font-semibold">{formatBRL(order.total_cents)}</span>
+          <a
+            href={`/imprimir/${slug}/pedido/${order.id}`}
+            target="_blank"
+            rel="noopener"
+            className="text-xs font-medium text-muted hover:text-text hover:underline"
+          >
+            Imprimir
+          </a>
+        </span>
         <div className="flex flex-wrap gap-2">
           {actions.map((to) => (
             <StatusButton key={to} slug={slug} orderId={order.id} to={to} />

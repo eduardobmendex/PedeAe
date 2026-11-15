@@ -14,11 +14,13 @@ export function ManualOrderForm({
   menu,
   tables,
   initialTableId,
+  canApplyCoupons = false,
 }: {
   slug: string;
   menu: PublicMenu;
   tables: { id: string; name: string }[];
   initialTableId: string;
+  canApplyCoupons?: boolean;
 }) {
   const router = useRouter();
   const cart = useCart(`pedeae:manual:${slug}`);
@@ -26,6 +28,7 @@ export function ManualOrderForm({
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<PublicProduct | null>(null);
   const [error, setError] = useState<string>();
+  const [coupon, setCoupon] = useState("");
   const [sending, startSending] = useTransition();
 
   const products = useMemo(() => {
@@ -42,6 +45,7 @@ export function ManualOrderForm({
       try {
         const result = await createManualOrder(slug, tableId || null, {
           idempotencyKey,
+          couponCode: coupon.trim() ? coupon.trim().toUpperCase() : undefined,
           customerName: cart.state.customerName,
           notes: cart.state.notes,
           items: cart.state.lines.map((l) => ({
@@ -139,8 +143,14 @@ export function ManualOrderForm({
           />
         </Field>
 
+        {canApplyCoupons && (
+          <Field label="Cupom (opcional)" htmlFor="order-coupon" hint="O desconto é calculado ao lançar.">
+            <Input id="order-coupon" value={coupon} maxLength={20} onChange={(e) => setCoupon(e.target.value.toUpperCase())} />
+          </Field>
+        )}
+
         <div className="flex items-center justify-between font-semibold">
-          <span>Total</span>
+          <span>{coupon.trim() ? "Total antes do cupom" : "Total"}</span>
           <span>{formatBRL(cart.totalCents)}</span>
         </div>
         {error && (

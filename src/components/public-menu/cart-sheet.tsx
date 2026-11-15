@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { placeCustomerOrder } from "@/app/q/[token]/actions";
+import { placeCustomerOrder, previewCoupon } from "@/app/q/[token]/actions";
 import { rememberOrder, useCart } from "@/lib/cart";
 import { formatBRL } from "@/lib/money";
 
@@ -26,6 +26,44 @@ export function CartSheet({
   const router = useRouter();
   const [error, setError] = useState<string>();
   const [sending, startSending] = useTransition();
+  // Cupom: prévia do desconto; o valor final é sempre recalculado pelo banco no pedido.
+  const [couponInput, setCouponInput] = useState("");
+  const [coupon, setCoupon] = useState<{ code: string; discountCents: number; label: string } | null>(null);
+  const [couponError, setCouponError] = useState<string>();
+  const [checking, startChecking] = useTransition();
+
+  function applyCoupon(code: string) {
+    setCouponError(undefined);
+    startChecking(async () => {
+      const r = await previewCoupon(tableToken, code, cart.totalCents).catch(() => ({ ok: false as const, error: "Sem conexão." }));
+      if (r.ok) setCoupon({ code: r.code, discountCents: r.discountCents, label: r.label });
+      else {
+        setCoupon(null);
+        setCouponError(r.error);
+      }
+    });
+  }
+
+  // Carrinho mudou: confere o cupom de novo (mínimo do pedido, valor do desconto).
+  const total = cart.totalCents;
+  const appliedCode = coupon?.code;
+  useEffect(() => {
+    if (!appliedCode || total === 0) return;
+    let cancelled = false;
+    previewCoupon(tableToken, appliedCode, total)
+      .then((r) => {
+        if (cancelled) return;
+        if (r.ok) setCoupon({ code: r.code, discountCents: r.discountCents, label: r.label });
+        else {
+          setCoupon(null);
+          setCouponError(r.error);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [total, appliedCode, tableToken]);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -41,6 +79,7 @@ export function CartSheet({
       try {
         const result = await placeCustomerOrder(tableToken, {
           idempotencyKey,
+          couponCode: coupon?.code,
           customerName: cart.state.customerName,
           notes: cart.state.notes,
           items: cart.state.lines.map((l) => ({
@@ -52,6 +91,7 @@ export function CartSheet({
         });
         if (!result.ok) {
           setError(result.error);
+          if (/cupom/i.test(result.error)) setCoupon(null);
           return;
         }
         rememberOrder(slug, { token: result.publicToken, number: result.orderNumber, at: Date.now() });
@@ -145,6 +185,50 @@ export function CartSheet({
                     className="border border-input-border bg-input px-3 py-2 text-base font-normal outline-none focus:border-brand"
                   />
                 </label>
+                <div className="flex flex-col gap-1.5 text-sm font-medium">
+                  <label htmlFor="coupon">Cupom de desconto</label>
+                  {coupon ? (
+                    <div className="flex items-center justify-between rounded-lg bg-success-soft px-3 py-2 text-success">
+                      <span>
+                        <strong>{coupon.code}</strong> · {coupon.label}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCoupon(null);
+                          setCouponInput("");
+                        }}
+                        className="text-xs font-semibold underline"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        id="coupon"
+                        value={couponInput}
+                        onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                        maxLength={20}
+                        autoCapitalize="characters"
+                        autoComplete="off"
+                        placeholder="Ex.: BEMVINDO"
+                        style={{ borderRadius: "var(--radius)" }}
+                        className="h-11 min-w-0 flex-1 border border-input-border bg-input px-3 text-base font-normal uppercase outline-none focus:border-brand"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => applyCoupon(couponInput)}
+                        disabled={checking || couponInput.trim().length < 3}
+                        style={{ borderRadius: "var(--radius)" }}
+                        className="h-11 shrink-0 border border-brand px-4 font-semibold text-brand-text disabled:opacity-50"
+                      >
+                        {checking ? "…" : "Aplicar"}
+                      </button>
+                    </div>
+                  )}
+                  {couponError && !coupon && <p className="text-sm font-normal text-danger">{couponError}</p>}
+                </div>
                 <p className="rounded-lg bg-surface-2 px-3 py-2 text-sm text-muted">
                   Pagamento no local, ao final do atendimento.
                 </p>
@@ -160,9 +244,21 @@ export function CartSheet({
                 {error}
               </p>
             )}
+            {coupon && coupon.discountCents > 0 && (
+              <>
+                <div className="flex items-center justify-between text-sm text-muted">
+                  <span>Subtotal</span>
+                  <span>{formatBRL(cart.totalCents)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm text-success">
+                  <span>Desconto ({coupon.code})</span>
+                  <span>− {formatBRL(coupon.discountCents)}</span>
+                </div>
+              </>
+            )}
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted">Total estimado</span>
-              <span className="text-lg font-semibold">{formatBRL(cart.totalCents)}</span>
+              <span className="text-lg font-semibold">{formatBRL(Math.max(0, cart.totalCents - (coupon?.discountCents ?? 0)))}</span>
             </div>
             <button
               type="button"

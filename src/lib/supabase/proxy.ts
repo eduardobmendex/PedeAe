@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./env";
 
-const PROTECTED_PREFIXES = ["/painel", "/convite"];
+const PROTECTED_PREFIXES = ["/painel", "/convite", "/imprimir"];
 
 /**
  * Renova a sessão do Supabase e faz o redirecionamento otimista para o login.

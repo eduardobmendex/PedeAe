@@ -1,8 +1,10 @@
 import { Suspense, type ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { BrandScope } from "@/components/brand-scope";
+import { ServiceCallsDock } from "@/components/service-calls-dock";
 import { Skeleton } from "@/components/ui";
 import { getCurrentUser, getOrgContext } from "@/lib/auth";
+import { can } from "@/lib/permissions";
 import { roleLabels } from "@/lib/validation";
 import { navFor } from "./nav";
 import { Sidebar } from "./sidebar";
@@ -47,6 +49,13 @@ async function OrgFrame({ params, children }: { params: Params; children: ReactN
           {children}
         </div>
       </main>
+      {can(membership, "view_orders") && (
+        <ServiceCallsDock
+          orgId={organization.id}
+          slug={slug}
+          canOpenTabs={can(membership, "receive_payments") || can(membership, "close_tabs")}
+        />
+      )}
     </BrandScope>
   );
 }

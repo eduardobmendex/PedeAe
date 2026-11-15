@@ -121,8 +121,20 @@ function Ticket({ slug, order, next, now }: { slug: string; order: KitchenOrder;
       </ul>
       {order.notes && <p className="rounded-lg bg-warning-soft px-3 py-2 font-medium text-warning">{order.notes}</p>}
 
-      <div className="[&_button]:h-12 [&_button]:w-full [&_button]:text-base [&_form]:w-full">
-        <StatusButton slug={slug} orderId={order.id} to={next} />
+      <div className="flex items-stretch gap-2">
+        <div className="flex-1 [&_button]:h-12 [&_button]:w-full [&_button]:text-base [&_form]:w-full">
+          <StatusButton slug={slug} orderId={order.id} to={next} />
+        </div>
+        <a
+          href={`/imprimir/${slug}/pedido/${order.id}`}
+          target="_blank"
+          rel="noopener"
+          aria-label={`Imprimir comanda do pedido ${order.order_number}`}
+          title="Imprimir comanda"
+          className="flex w-12 items-center justify-center rounded-lg border border-border-strong text-lg hover:bg-hover"
+        >
+          🖨
+        </a>
       </div>
     </article>
   );

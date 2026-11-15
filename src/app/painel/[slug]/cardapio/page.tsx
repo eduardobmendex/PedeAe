@@ -6,7 +6,7 @@ import { can } from "@/lib/permissions";
 import { formatBRL } from "@/lib/money";
 import { imageUrl } from "@/lib/storage";
 import { createClient } from "@/lib/supabase/server";
-import { publishCategories, toggleProductAvailable } from "./actions";
+import { publishCategories, toggleProductAvailable, toggleProductSoldOut } from "./actions";
 import { CategoryManager } from "./category-manager";
 import { MenuTypeSwitcher } from "./menu-type-switcher";
 
@@ -30,7 +30,7 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/pai
       .order("name"),
     supabase
       .from("products")
-      .select("id, category_id, name, price_cents, image_path, available, featured")
+      .select("id, category_id, name, price_cents, image_path, available, featured, sold_out")
       .eq("organization_id", organization.id)
       .order("sort_order")
       .order("name"),
@@ -151,15 +151,26 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/pai
                                 </p>
                                 <p className="text-sm text-muted">{formatBRL(p.price_cents)}</p>
                               </Link>
-                              <form action={toggleProductAvailable.bind(null, slug, p.id, !p.available)}>
-                                <button
-                                  type="submit"
-                                  className="rounded-lg px-2 py-1 text-xs font-medium hover:bg-hover"
-                                  title={p.available ? "Marcar como esgotado" : "Marcar como disponível"}
-                                >
-                                  {p.available ? <Badge tone="success">disponível</Badge> : <Badge tone="danger">esgotado</Badge>}
-                                </button>
-                              </form>
+                              <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center">
+                                <form action={toggleProductSoldOut.bind(null, slug, p.id, !p.sold_out)}>
+                                  <button
+                                    type="submit"
+                                    className="rounded-lg px-1.5 py-1 text-xs font-medium hover:bg-hover"
+                                    title={p.sold_out ? "Voltar a vender" : "Marcar como esgotado (o cliente vê, mas não pede)"}
+                                  >
+                                    {p.sold_out ? <Badge tone="danger">esgotado</Badge> : <Badge tone="success">à venda</Badge>}
+                                  </button>
+                                </form>
+                                <form action={toggleProductAvailable.bind(null, slug, p.id, !p.available)}>
+                                  <button
+                                    type="submit"
+                                    className="rounded-lg px-1.5 py-1 text-xs font-medium hover:bg-hover"
+                                    title={p.available ? "Ocultar do cardápio" : "Mostrar no cardápio"}
+                                  >
+                                    {p.available ? <Badge>visível</Badge> : <Badge tone="warning">oculto</Badge>}
+                                  </button>
+                                </form>
+                              </div>
                             </li>
                           );
                         })}

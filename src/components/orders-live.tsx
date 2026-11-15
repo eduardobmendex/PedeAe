@@ -1,9 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { beep as playBeep, setSoundPreference, useSoundPreference } from "@/lib/alert-sound";
 import { createClient } from "@/lib/supabase/client";
+import { realtimeClient } from "@/lib/supabase/realtime";
 
 /**
  * Pedidos em tempo real: escuta INSERT/UPDATE em `orders` do estabelecimento (Supabase Realtime,
@@ -17,26 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 type Alert = "new" | "kitchen";
 type OrderRow = { order_number: number; status: string };
 
-const SOUND_KEY = "pedeae:order-sound";
 const FALLBACK_MS = 15_000;
-const SOUND_EVENT = "pedeae:order-sound";
-
-// Preferência de som por aparelho (localStorage), lida sem divergir da renderização no servidor.
-function readSound() {
-  try {
-    return localStorage.getItem(SOUND_KEY) === "on";
-  } catch {
-    return false;
-  }
-}
-function subscribeSound(onChange: () => void) {
-  window.addEventListener(SOUND_EVENT, onChange);
-  window.addEventListener("storage", onChange);
-  return () => {
-    window.removeEventListener(SOUND_EVENT, onChange);
-    window.removeEventListener("storage", onChange);
-  };
-}
 
 export function OrdersLive({
   orgId,
@@ -47,10 +30,9 @@ export function OrdersLive({
 }) {
   const router = useRouter();
   const [live, setLive] = useState(false);
-  const sound = useSyncExternalStore(subscribeSound, readSound, () => false);
+  const sound = useSoundPreference();
   const [toast, setToast] = useState<string | null>(null);
   const unseen = useRef(0);
-  const audio = useRef<AudioContext | null>(null);
 
   // Contador de pedidos novos no título da aba enquanto ela está em segundo plano.
   useEffect(() => {
@@ -87,7 +69,7 @@ export function OrdersLive({
       setToast(`Novo pedido #${row.order_number}`);
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => setToast(null), 6000);
-      if (soundRef.current) beep(audio);
+      if (soundRef.current) playBeep();
       if (document.visibilityState !== "visible") {
         unseen.current += 1;
         document.title = `(${unseen.current}) ${document.title.replace(/^\(\d+\) /, "")}`;
@@ -99,9 +81,8 @@ export function OrdersLive({
 
     const subscribe = async () => {
       // Sem o token do usuário o Realtime entra como anônimo e o RLS recusa a assinatura.
-      const { data } = await supabase.auth.getSession();
-      if (cancelled) return;
-      await supabase.realtime.setAuth(data.session?.access_token ?? null);
+      // Token do usuário já aplicado ao Realtime (uma vez por página, compartilhado).
+      await realtimeClient();
       if (cancelled) return;
       // Tópico único por montagem: remontar (ex.: modo estrito do React) não reaproveita canal fechado.
       channel = supabase
@@ -159,12 +140,9 @@ export function OrdersLive({
 
   function toggleSound() {
     const next = !sound;
-    try {
-      localStorage.setItem(SOUND_KEY, next ? "on" : "off");
-    } catch {}
-    window.dispatchEvent(new Event(SOUND_EVENT));
+    setSoundPreference(next);
     // O navegador só libera áudio após um clique: este é o clique.
-    if (next) beep(audio);
+    if (next) playBeep();
   }
 
   return (
@@ -206,33 +184,4 @@ export function OrdersLive({
       )}
     </>
   );
-}
-
-/** Dois bipes curtos gerados no navegador (sem arquivo de áudio). */
-function beep(ref: { current: AudioContext | null }) {
-  try {
-    const ctx = (ref.current ??= new AudioContext());
-    void ctx.resume();
-    for (const [start, freq] of [
-      [0, 880],
-      [0.18, 1175],
-    ]) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(
-        0.35,
-        ctx.currentTime + start + 0.02,
-      );
-      gain.gain.exponentialRampToValueAtTime(
-        0.0001,
-        ctx.currentTime + start + 0.16,
-      );
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + 0.17);
-    }
-  } catch {}
 }
