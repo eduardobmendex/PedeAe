@@ -17,11 +17,11 @@ export async function resolveServiceCall(slug: string, callId: string): Promise<
 }
 
 /** Esgotado com um toque (qualquer pessoa da equipe que vê pedidos). */
-export async function setSoldOut(slug: string, productId: string, soldOut: boolean): Promise<{ ok: boolean }> {
+export async function setSoldOut(slug: string, productId: string, soldOut: boolean, onlyToday = true): Promise<{ ok: boolean }> {
   await requirePermission(slug, "view_orders");
   if (!UUID.test(productId)) return { ok: false };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("set_product_sold_out", { p_product_id: productId, p_sold_out: soldOut });
+  const { error } = await supabase.rpc("set_product_sold_out", { p_product_id: productId, p_sold_out: soldOut, p_only_today: onlyToday });
   if (error) return { ok: false };
   // O cardápio público é cacheado: invalida para o cliente ver na hora.
   updateTag(menuTag(slug));

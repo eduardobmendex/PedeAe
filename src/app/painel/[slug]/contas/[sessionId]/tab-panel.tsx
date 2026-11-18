@@ -5,9 +5,10 @@ import { useState, useTransition } from "react";
 import { Button, Card } from "@/components/ui";
 import { centsToInput, formatBRL, parseBRL } from "@/lib/money";
 import { cashPayment, computeTab, MAX_SERVICE_FEE, paymentMethods, splitEvenly, type TabPaymentMethod } from "@/lib/tab";
-import { closeTab, recordPayment, removePayment } from "../actions";
+import { closeTab, createPaymentLink, recordPayment, removePayment } from "../actions";
+import { PaymentLink } from "./payment-link";
 
-type Payment = { id: string; amount_cents: number; method: string; created_at: string };
+type Payment = { id: string; amount_cents: number; method: string; created_at: string; payment_intent_id?: string | null };
 
 const time = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Bahia", hour: "2-digit", minute: "2-digit" });
 
@@ -21,6 +22,7 @@ export function TabPanel({
   initialFee,
   canReceive,
   canClose,
+  onlinePayments = false,
 }: {
   slug: string;
   sessionId: string;
@@ -31,6 +33,7 @@ export function TabPanel({
   initialFee: number;
   canReceive: boolean;
   canClose: boolean;
+  onlinePayments?: boolean;
 }) {
   const router = useRouter();
   const [fee, setFee] = useState(initialFee);
@@ -186,6 +189,13 @@ export function TabPanel({
         </Card>
       )}
 
+      {isOpen && canReceive && onlinePayments && t.remainingCents >= 100 && (
+        <PaymentLink
+          suggestedCents={people > 1 ? shares[0] : t.remainingCents}
+          create={(cents) => createPaymentLink(slug, sessionId, cents)}
+        />
+      )}
+
       {payments.length > 0 && (
         <Card className="flex flex-col gap-2">
           <h2 className="font-semibold">Pagamentos</h2>
@@ -195,9 +205,10 @@ export function TabPanel({
                 <span className="min-w-0 flex-1">
                   {paymentMethods[p.method as TabPaymentMethod] ?? p.method}
                   <span className="text-muted"> · {time.format(new Date(p.created_at))}</span>
+                  {p.payment_intent_id && <span className="ml-1 rounded bg-info-soft px-1.5 text-xs font-medium text-info">online</span>}
                 </span>
                 <span className="font-semibold tabular-nums">{formatBRL(p.amount_cents)}</span>
-                {isOpen && canReceive && (
+                {isOpen && canReceive && !p.payment_intent_id && (
                   <button
                     type="button"
                     disabled={pending}

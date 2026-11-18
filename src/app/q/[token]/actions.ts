@@ -1,6 +1,7 @@
 "use server";
 
 import { couponCodeSchema, couponErrorMessage, orderErrorMessage, orderPayloadSchema, type PlaceOrderResult } from "@/lib/orders";
+import { paymentsConfigured } from "@/lib/payments/service";
 import { createPublicClient } from "@/lib/supabase/public";
 
 /**
@@ -19,11 +20,12 @@ export async function placeCustomerOrder(tableToken: string, payload: unknown): 
     p_notes: parsed.data.notes,
     p_idempotency_key: parsed.data.idempotencyKey,
     p_coupon_code: parsed.data.couponCode ?? null,
+    p_prepay: parsed.data.prepay === true && paymentsConfigured(),
   });
   if (error) return { ok: false, ...orderErrorMessage(error.message) };
 
-  const result = data as { public_token: string; order_number: number };
-  return { ok: true, publicToken: result.public_token, orderNumber: result.order_number };
+  const result = data as { public_token: string; order_number: number; payment_token?: string | null };
+  return { ok: true, publicToken: result.public_token, orderNumber: result.order_number, paymentToken: result.payment_token ?? undefined };
 }
 
 const TOKEN = /^[0-9a-f]{24}$/;
@@ -58,4 +60,25 @@ export async function callService(tableToken: string, kind: "waiter" | "bill"): 
     return { ok: false, error: error.message.includes("table_invalid") ? "Este QR Code não está mais ativo." : "Não foi possível chamar agora. Tente de novo." };
   }
   return { ok: true, tabTotalCents: (data as { tab_total_cents: number }).tab_total_cents };
+}
+
+export type TabPaymentStart = { ok: true; token: string } | { ok: false; error: string };
+
+/** Cliente da mesa paga a conta online (toda ou uma parte), com ou sem a taxa de serviço. */
+export async function startTabPayment(tableToken: string, amountCents: number | null, includeServiceFee: boolean): Promise<TabPaymentStart> {
+  if (!TOKEN.test(tableToken)) return { ok: false, error: "QR Code inválido." };
+  if (!paymentsConfigured()) return { ok: false, error: "Pagamento online indisponível agora." };
+  if (amountCents !== null && (!Number.isInteger(amountCents) || amountCents < 100)) return { ok: false, error: "Valor mínimo: R$ 1,00." };
+  const { data, error } = await createPublicClient().rpc("create_tab_payment_intent", {
+    p_table_token: tableToken,
+    p_amount_cents: amountCents,
+    p_include_service_fee: includeServiceFee,
+  });
+  if (error) {
+    if (error.message.includes("tab_empty")) return { ok: false, error: "Não há nada a pagar nesta mesa agora." };
+    if (error.message.includes("invalid_amount")) return { ok: false, error: "O valor é maior do que falta pagar na mesa." };
+    if (error.message.includes("online_payments_disabled")) return { ok: false, error: "Este estabelecimento não está recebendo pagamentos online." };
+    return { ok: false, error: "Não foi possível iniciar o pagamento. Tente de novo." };
+  }
+  return { ok: true, token: (data as { token: string }).token };
 }

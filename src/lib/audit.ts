@@ -30,8 +30,8 @@ export const categoryPrefixes: Record<AuditCategory, string[]> = {
   mesas: ["tables.", "table_qr."],
   equipe: ["membership.", "invitation."],
   visual: ["settings.", "organization."],
-  pedidos: ["order.", "tab."],
-  assinatura: ["billing."],
+  pedidos: ["order.", "tab.", "payment."],
+  assinatura: ["billing.", "payments."],
 };
 
 export function categoryOf(action: string): AuditCategory | null {
@@ -52,6 +52,7 @@ const FIELD_LABELS: Record<string, string> = {
   active: "Ativo",
   featured: "Destaque",
   sold_out: "Esgotado",
+  sold_out_until: "Esgotado até",
   code: "Código",
   value: "Valor",
   max_uses: "Limite de usos",
@@ -173,6 +174,13 @@ export function describeAudit(entry: AuditEntry, name?: string): { title: string
         title: "Fechou a conta de uma mesa",
         details: [`Total: ${formatBRL(Number(m.total_cents ?? 0))}`, `Taxa de serviço: ${formatBRL(Number(m.service_fee_cents ?? 0))}`],
       };
+    case "payment.online_confirmed":
+      return {
+        title: m.kind === "order" ? "Recebeu um pagamento online de pedido" : "Recebeu um pagamento online na conta da mesa",
+        details: [`Valor: ${formatBRL(Number(m.amount_cents ?? 0))}`, `Forma: ${m.method === "credit_card" ? "cartão de crédito" : "Pix"}`],
+      };
+    case "payments.settings_updated":
+      return { title: "Alterou o pagamento online", details: [`Ativo: ${m.enabled ? "sim" : "não"}`, `Comissão da PedeAe: ${m.platform_fee_percent ?? 0}%`] };
     case "billing.updated":
       return { title: "Alterou o plano da assinatura", details: [`Plano: ${m.plan}`, `Mensalidade: ${formatBRL(Number(m.monthly_price_cents ?? 0))}`] };
     case "billing.payment_recorded":

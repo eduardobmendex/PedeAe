@@ -15,7 +15,7 @@ export type Shop = {
 };
 
 const ORG_TABLES = [
-  "service_calls", "tab_payments", "coupons", "billing_payments", "organization_billing", "order_item_options", "order_items", "order_events", "orders",
+  "service_calls", "tab_payments", "payment_intents", "organization_payment_settings", "coupons", "billing_payments", "organization_billing", "order_item_options", "order_items", "order_events", "orders",
   "table_sessions", "order_counters", "table_qr_codes", "tables", "product_option_items", "product_options",
   "products", "categories", "invitations", "memberships", "audit_logs", "organization_settings",
 ];

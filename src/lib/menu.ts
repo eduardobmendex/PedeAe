@@ -25,6 +25,8 @@ export type PublicProduct = {
 export type PublicCategory = { id: string; name: string; products: PublicProduct[] };
 export type PublicMenu = {
   organization: { id: string; name: string; slug: string };
+  /** Estabelecimento aceita pagamento online (Pagar.me configurado pelo Admin Geral). */
+  online_payments?: boolean;
   branding: {
     theme: string;
     brand_color: string;

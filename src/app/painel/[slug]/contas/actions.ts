@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { getOrgContext } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
@@ -54,4 +55,25 @@ export async function closeTab(slug: string, sessionId: string, feePercent: numb
   refresh(slug, sessionId);
   revalidatePath(`/painel/${slug}`);
   return { ok: true };
+}
+
+export type LinkResult = { ok: true; url: string } | { ok: false; error: string };
+
+/** Gera um link de pagamento online (Pix/cartão) para a conta, para mandar por WhatsApp. */
+export async function createPaymentLink(slug: string, sessionId: string, amountCents: number): Promise<LinkResult> {
+  const { membership } = await getOrgContext(slug);
+  if (!can(membership, "receive_payments")) return { ok: false, error: tabErrorMessage("forbidden") };
+  if (!UUID.test(sessionId) || !Number.isInteger(amountCents) || amountCents < 100) return { ok: false, error: "Valor mínimo: R$ 1,00." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_tab_payment_link", { p_session_id: sessionId, p_amount_cents: amountCents });
+  if (error) {
+    if (error.message.includes("online_payments_disabled")) return { ok: false, error: "Pagamento online não está ativo para este estabelecimento." };
+    if (error.message.includes("invalid_amount")) return { ok: false, error: "O valor é maior do que falta pagar." };
+    return { ok: false, error: tabErrorMessage(error.message) };
+  }
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
+  return { ok: true, url: `${proto}://${host}/pagar/${(data as { token: string }).token}` };
 }

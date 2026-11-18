@@ -13,6 +13,7 @@ export function CartSheet({
   tableToken,
   tableName,
   slug,
+  onlinePayments = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -20,12 +21,14 @@ export function CartSheet({
   tableToken: string;
   tableName: string;
   slug: string;
+  onlinePayments?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const cart = useCart(cartKey);
   const router = useRouter();
   const [error, setError] = useState<string>();
   const [sending, startSending] = useTransition();
+  const [payNow, setPayNow] = useState(false);
   // Cupom: prévia do desconto; o valor final é sempre recalculado pelo banco no pedido.
   const [couponInput, setCouponInput] = useState("");
   const [coupon, setCoupon] = useState<{ code: string; discountCents: number; label: string } | null>(null);
@@ -80,6 +83,7 @@ export function CartSheet({
         const result = await placeCustomerOrder(tableToken, {
           idempotencyKey,
           couponCode: coupon?.code,
+          prepay: onlinePayments && payNow,
           customerName: cart.state.customerName,
           notes: cart.state.notes,
           items: cart.state.lines.map((l) => ({
@@ -96,7 +100,8 @@ export function CartSheet({
         }
         rememberOrder(slug, { token: result.publicToken, number: result.orderNumber, at: Date.now() });
         cart.clear();
-        router.push(`/pedido/${result.publicToken}`);
+        // Pagar agora: o pedido só vai para a cozinha depois do pagamento.
+        router.push(result.paymentToken ? `/pagar/${result.paymentToken}` : `/pedido/${result.publicToken}`);
       } catch {
         // Falha de rede: o pedido pode ter chegado. Reenviar usa a mesma chave, sem duplicar.
         setError("Sem conexão com o servidor. Verifique a internet e toque em enviar novamente.");
@@ -229,9 +234,31 @@ export function CartSheet({
                   )}
                   {couponError && !coupon && <p className="text-sm font-normal text-danger">{couponError}</p>}
                 </div>
-                <p className="rounded-lg bg-surface-2 px-3 py-2 text-sm text-muted">
-                  Pagamento no local, ao final do atendimento.
-                </p>
+                {onlinePayments ? (
+                  <fieldset className="flex flex-col gap-2 text-sm">
+                    <legend className="mb-1 font-medium">Como prefere pagar?</legend>
+                    {[
+                      { now: false, title: "Pagar no final", hint: "Na mesa, com o atendente ou pelo celular." },
+                      { now: true, title: "Pagar agora", hint: "Pix ou cartão. O pedido vai para o preparo assim que o pagamento for confirmado." },
+                    ].map((o) => (
+                      <label
+                        key={o.title}
+                        style={{ borderRadius: "var(--radius)" }}
+                        className={`flex cursor-pointer items-start gap-3 border px-3 py-2.5 ${payNow === o.now ? "border-brand bg-active" : "border-border-strong"}`}
+                      >
+                        <input type="radio" name="pay-when" checked={payNow === o.now} onChange={() => setPayNow(o.now)} className="mt-1" />
+                        <span>
+                          <span className="block font-semibold">{o.title}</span>
+                          <span className="block text-muted">{o.hint}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </fieldset>
+                ) : (
+                  <p className="rounded-lg bg-surface-2 px-3 py-2 text-sm text-muted">
+                    Pagamento no local, ao final do atendimento.
+                  </p>
+                )}
               </div>
             </>
           )}
@@ -267,7 +294,7 @@ export function CartSheet({
               style={{ borderRadius: "var(--radius)" }}
               className="h-12 bg-brand font-semibold text-brand-contrast disabled:opacity-60"
             >
-              {sending ? "Enviando…" : "Enviar pedido"}
+              {sending ? "Enviando…" : onlinePayments && payNow ? "Ir para o pagamento" : "Enviar pedido"}
             </button>
           </div>
         )}

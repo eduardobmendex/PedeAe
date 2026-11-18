@@ -63,6 +63,7 @@ export function tabErrorMessage(message: string): string {
   if (message.includes("tab_has_active_orders")) return "Há pedidos em andamento nesta mesa. Marque-os como entregues (ou cancele) antes de fechar.";
   if (message.includes("tab_closed")) return "Esta conta já foi fechada.";
   if (message.includes("invalid_fee")) return `Taxa de serviço deve ficar entre 0% e ${MAX_SERVICE_FEE}%.`;
+  if (message.includes("online_payment")) return "Pagamento online não pode ser excluído aqui. Para devolver, faça o estorno no Pagar.me.";
   if (message.includes("forbidden")) return "Você não tem permissão para esta ação.";
   return "Não foi possível concluir. Tente novamente.";
 }

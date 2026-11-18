@@ -18,7 +18,16 @@ const normalize = (s: string) =>
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 
-export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string; token: string } | null }) {
+export function PublicMenu({
+  menu,
+  table,
+  onlinePayments = false,
+}: {
+  menu: Menu;
+  table: { name: string; token: string } | null;
+  /** Pagamento online disponível (estabelecimento configurado e servidor com Pagar.me). */
+  onlinePayments?: boolean;
+}) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<PublicProduct | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
@@ -130,7 +139,7 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
         )}
       </header>
 
-      {table && <ServiceButtons tableToken={table.token} tableName={table.name} />}
+      {table && <ServiceButtons tableToken={table.token} tableName={table.name} onlinePayments={onlinePayments} />}
 
       <div className="sticky top-0 z-20 bg-bg/95 px-4 pt-2 pb-3 backdrop-blur sm:px-6">
         <label className="relative block">
@@ -252,6 +261,7 @@ export function PublicMenu({ menu, table }: { menu: Menu; table: { name: string;
           tableToken={table.token}
           tableName={table.name}
           slug={menu.organization.slug}
+          onlinePayments={onlinePayments}
         />
       )}
     </div>

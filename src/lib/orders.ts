@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const orderStatuses = [
+  "awaiting_payment",
   "pending_confirmation",
   "received",
   "preparing",
@@ -12,6 +13,7 @@ export const orderStatuses = [
 export type OrderStatus = (typeof orderStatuses)[number];
 
 export const orderStatusLabels: Record<OrderStatus, string> = {
+  awaiting_payment: "Aguardando pagamento",
   pending_confirmation: "Aguardando confirmação",
   received: "Recebido",
   preparing: "Em preparo",
@@ -22,6 +24,7 @@ export const orderStatusLabels: Record<OrderStatus, string> = {
 };
 
 export const orderStatusTone: Record<OrderStatus, "neutral" | "info" | "warning" | "success" | "danger" | "brand"> = {
+  awaiting_payment: "neutral",
   pending_confirmation: "warning",
   received: "info",
   preparing: "warning",
@@ -33,6 +36,7 @@ export const orderStatusTone: Record<OrderStatus, "neutral" | "info" | "warning"
 
 /** Espelho de private.order_transition_allowed (o banco é quem valida). */
 export const nextStatuses: Record<OrderStatus, OrderStatus[]> = {
+  awaiting_payment: ["cancelled"],
   pending_confirmation: ["received", "rejected"],
   received: ["preparing", "cancelled"],
   preparing: ["ready", "cancelled"],
@@ -79,11 +83,13 @@ export const orderPayloadSchema = z.object({
   notes: z.string().trim().max(280),
   idempotencyKey: z.string().uuid(),
   couponCode: couponCodeSchema.optional(),
+  /** Pagar online antes de o pedido ir para a cozinha. */
+  prepay: z.boolean().optional(),
 });
 export type OrderPayload = z.infer<typeof orderPayloadSchema>;
 
 export type PlaceOrderResult =
-  | { ok: true; publicToken: string; orderNumber: number }
+  | { ok: true; publicToken: string; orderNumber: number; paymentToken?: string }
   | { ok: false; error: string; retryable?: boolean };
 
 /** Mensagens para os erros de negócio do banco. */
@@ -110,6 +116,7 @@ export function orderErrorMessage(message: string): { error: string; retryable?:
   if (sold) return { error: "Um dos produtos acabou de esgotar. Remova-o do carrinho para continuar." };
   const coupon = couponErrorMessage(message);
   if (coupon) return { error: coupon };
+  if (message.includes("online_payments_disabled")) return { error: "Pagamento online indisponível agora. Escolha pagar no final." };
   if (message.includes("table_invalid")) return { error: "Este QR Code não está mais ativo. Chame um atendente." };
   if (message.includes("rate_limited")) return { error: "Muitos pedidos em pouco tempo. Aguarde alguns minutos." };
   if (message.includes("forbidden")) return { error: "Você não tem permissão para esta ação." };

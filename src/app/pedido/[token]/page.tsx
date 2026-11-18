@@ -59,7 +59,9 @@ async function OrderLoader({ params }: { params: PageProps<"/pedido/[token]">["p
   const menu = await getPublicMenu(order.organization.slug);
   const branding = brandingFrom(menu?.branding ?? DEFAULT_BRANDING_ROW);
   const stoppedLabel =
-    order.status === "pending_confirmation"
+    order.status === "awaiting_payment"
+      ? "O pedido vai para o preparo assim que o pagamento for confirmado. Se fechou a página de pagamento, volte ao cardápio e faça o pedido de novo."
+      : order.status === "pending_confirmation"
       ? "Aguardando a equipe confirmar seu pedido."
       : order.status === "rejected"
         ? "O estabelecimento não pôde aceitar este pedido. Fale com um atendente."

@@ -51,6 +51,9 @@ jobs:
             echo "DATABASE_URL=$DB_URL"
             echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
             echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${PUBLISHABLE_KEY:-$ANON_KEY}"
+            echo "SUPABASE_SECRET_KEY=${SECRET_KEY:-$SERVICE_ROLE_KEY}"
+            # Pagamentos online no simulador (nenhuma chave do Pagar.me no CI).
+            echo "PAYMENTS_SIMULATOR=1"
           } >> "$GITHUB_ENV"
 
       - name: Testes de banco (RLS, permissões, pedidos, relatórios)

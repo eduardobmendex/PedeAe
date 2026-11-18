@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { menuTag } from "@/lib/menu";
 import { z } from "zod";
 import { friendlyDbError, getOrgContext } from "@/lib/auth";
 import { paymentMethods, planIds } from "@/lib/billing";
@@ -99,4 +100,34 @@ export async function deletePayment(slug: string, paymentId: string) {
   const supabase = await createClient();
   await supabase.rpc("platform_delete_payment", { p_payment_id: paymentId });
   refresh(slug);
+}
+
+const paymentSettingsSchema = z.object({
+  enabled: z.literal("on").optional(),
+  recipient_id: z
+    .string()
+    .trim()
+    .regex(/^(rp_[A-Za-z0-9]+)?$/, "O recebedor do Pagar.me começa com rp_"),
+  platform_fee_percent: z.coerce.number().int("Comissão em número inteiro").min(0).max(20, "Comissão entre 0% e 20%"),
+});
+
+/** Pagamento online do estabelecimento: recebedor do Pagar.me (split) e comissão da PedeAe. */
+export async function savePaymentSettings(slug: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const organization = await platformOrg(slug);
+  const parsed = paymentSettingsSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const p = parsed.data;
+  if (p.enabled && !p.recipient_id) return { error: "Para ativar, informe o recebedor (rp_...) do estabelecimento no Pagar.me." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("platform_set_payment_settings", {
+    p_org_id: organization.id,
+    p_enabled: p.enabled === "on",
+    p_recipient_id: p.recipient_id || null,
+    p_platform_fee_percent: p.platform_fee_percent,
+  });
+  if (error) return { error: friendlyDbError(error.message) };
+  refresh(slug);
+  updateTag(menuTag(slug)); // o cardápio público mostra (ou não) o pagamento online
+  return { success: p.enabled ? "Pagamento online ativado." : "Configuração salva (pagamento online desligado)." };
 }

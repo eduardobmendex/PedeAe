@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { setSoldOut } from "@/app/painel/[slug]/service-actions";
 
-export type StockProduct = { id: string; name: string; category: string; sold_out: boolean };
+export type StockProduct = { id: string; name: string; category: string; sold_out: boolean; until_today?: boolean };
 
 const normalize = (s: string) =>
   s
@@ -16,6 +16,8 @@ export function SoldOutPanel({ slug, products }: { slug: string; products: Stock
   const [query, setQuery] = useState("");
   const [state, setState] = useState(() => new Map(products.map((p) => [p.id, p.sold_out])));
   const [error, setError] = useState<string>();
+  // Padrão: esgota só por hoje (volta sozinho no dia seguinte).
+  const [onlyToday, setOnlyToday] = useState(true);
   const [, start] = useTransition();
   const soldCount = [...state.values()].filter(Boolean).length;
 
@@ -34,7 +36,7 @@ export function SoldOutPanel({ slug, products }: { slug: string; products: Stock
     setError(undefined);
     setState((m) => new Map(m).set(p.id, next)); // otimista
     start(async () => {
-      const r = await setSoldOut(slug, p.id, next).catch(() => ({ ok: false }));
+      const r = await setSoldOut(slug, p.id, next, onlyToday).catch(() => ({ ok: false }));
       if (!r.ok) {
         setState((m) => new Map(m).set(p.id, !next));
         setError(`Não foi possível atualizar "${p.name}". Tente de novo.`);
@@ -59,6 +61,10 @@ export function SoldOutPanel({ slug, products }: { slug: string; products: Stock
           aria-label="Buscar produto"
           className="h-10 rounded-lg border border-input-border bg-input px-3 text-sm"
         />
+        <label className="flex items-center gap-2 text-sm text-muted">
+          <input type="checkbox" checked={onlyToday} onChange={(e) => setOnlyToday(e.target.checked)} />
+          Esgotar só por hoje (volta a ficar disponível sozinho amanhã)
+        </label>
         {error && <p className="text-sm text-danger">{error}</p>}
         <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
           {groups.map(([category, list]) => (
@@ -72,7 +78,7 @@ export function SoldOutPanel({ slug, products }: { slug: string; products: Stock
                       <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-hover">
                         <span className={`min-w-0 truncate text-sm ${sold ? "text-muted line-through" : ""}`}>{p.name}</span>
                         <span className="flex shrink-0 items-center gap-2 text-xs">
-                          <span className={sold ? "font-semibold text-danger" : "text-muted"}>{sold ? "Esgotado" : "Disponível"}</span>
+                          <span className={sold ? "font-semibold text-danger" : "text-muted"}>{sold ? (p.until_today && state.get(p.id) === p.sold_out ? "Esgotado hoje" : "Esgotado") : "Disponível"}</span>
                           <input
                             type="checkbox"
                             role="switch"

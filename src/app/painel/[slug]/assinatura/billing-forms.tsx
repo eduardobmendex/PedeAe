@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Button, Field, FormMessage, Input, Select, Textarea } from "@/components/ui";
 import { paymentMethods, planIds, plans, type Billing, type PlanId } from "@/lib/billing";
 import { centsToInput } from "@/lib/money";
-import { recordPayment, saveBilling } from "./actions";
+import { recordPayment, saveBilling, savePaymentSettings } from "./actions";
 
 export function BillingForm({ slug, billing, notes }: { slug: string; billing: Billing; notes: string }) {
   const [state, action, pending] = useActionState(saveBilling.bind(null, slug), undefined);
@@ -76,6 +76,36 @@ export function PaymentForm({ slug, defaultMonth, defaultAmountCents, today }: {
       <div className="flex items-center gap-3 sm:col-span-2">
         <Button type="submit" disabled={pending}>
           {pending ? "Registrando…" : "Registrar pagamento"}
+        </Button>
+        <FormMessage state={state} />
+      </div>
+    </form>
+  );
+}
+
+export function PaymentSettingsForm({
+  slug,
+  initial,
+}: {
+  slug: string;
+  initial: { enabled: boolean; recipientId: string; platformFeePercent: number };
+}) {
+  const [state, action, pending] = useActionState(savePaymentSettings.bind(null, slug), undefined);
+  return (
+    <form action={action} className="flex flex-col gap-4">
+      <label className="flex items-center gap-2 text-sm font-medium">
+        <input type="checkbox" name="enabled" defaultChecked={initial.enabled} />
+        Aceitar pagamento online (Pix e cartão) no cardápio
+      </label>
+      <Field label="Recebedor do estabelecimento no Pagar.me" htmlFor="pg-recipient" hint="ID do recebedor (rp_...) cadastrado no Pagar.me com a conta bancária do estabelecimento. O valor de cada pagamento vai para ele.">
+        <Input id="pg-recipient" name="recipient_id" defaultValue={initial.recipientId} placeholder="rp_..." autoComplete="off" />
+      </Field>
+      <Field label="Comissão da PedeAe (%)" htmlFor="pg-fee" hint="Parte de cada pagamento online que vai para o recebedor da PedeAe (PAGARME_PLATFORM_RECIPIENT_ID). 0 = sem comissão.">
+        <Input id="pg-fee" name="platform_fee_percent" type="number" min={0} max={20} step={1} defaultValue={initial.platformFeePercent} />
+      </Field>
+      <div className="flex items-center gap-3">
+        <Button type="submit" disabled={pending}>
+          {pending ? "Salvando…" : "Salvar pagamento online"}
         </Button>
         <FormMessage state={state} />
       </div>

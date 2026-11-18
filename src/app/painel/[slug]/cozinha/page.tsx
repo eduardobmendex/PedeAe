@@ -4,7 +4,9 @@ import { OrdersLive } from "@/components/orders-live";
 import { SoldOutPanel, type StockProduct } from "@/components/sold-out-panel";
 import { requirePermission } from "@/lib/auth";
 import type { OrderStatus } from "@/lib/orders";
+import { isSoldOut } from "@/lib/sold-out";
 import { createClient } from "@/lib/supabase/server";
+import { AutoPrintToggle } from "./auto-print";
 import { KitchenBoard, type KitchenOrder } from "./kitchen-board";
 
 export const metadata: Metadata = { title: "Cozinha" };
@@ -37,16 +39,16 @@ export default async function KitchenPage({ params }: PageProps<"/painel/[slug]/
     // Produtos à venda (categorias publicadas), para marcar esgotado.
     supabase
       .from("products")
-      .select("id, name, sold_out, categories!inner (name, active, sort_order)")
+      .select("id, name, sold_out, sold_out_until, categories!inner (name, active, sort_order)")
       .eq("organization_id", organization.id)
       .eq("available", true)
       .eq("categories.active", true)
       .order("name"),
   ]);
-  type StockRow = { id: string; name: string; sold_out: boolean; categories: { name: string; sort_order: number } };
+  type StockRow = { id: string; name: string; sold_out: boolean; sold_out_until: string | null; categories: { name: string; sort_order: number } };
   const products: StockProduct[] = ((stock ?? []) as unknown as StockRow[])
     .sort((a, b) => a.categories.sort_order - b.categories.sort_order || a.name.localeCompare(b.name))
-    .map((p) => ({ id: p.id, name: p.name, category: p.categories.name, sold_out: p.sold_out }));
+    .map((p) => ({ id: p.id, name: p.name, category: p.categories.name, sold_out: isSoldOut(p.sold_out, p.sold_out_until), until_today: p.sold_out_until !== null }));
 
   const orders: KitchenOrder[] = (data ?? []).map((o) => ({
     id: o.id,
@@ -75,7 +77,10 @@ export default async function KitchenPage({ params }: PageProps<"/painel/[slug]/
           <h1 className="text-2xl font-bold">Cozinha</h1>
           <p className="text-sm text-muted">Do mais antigo para o mais novo. Toque no botão para avançar o pedido.</p>
         </div>
-        <OrdersLive orgId={organization.id} alertOn="kitchen" />
+        <div className="flex flex-wrap items-center gap-2">
+          <AutoPrintToggle />
+          <OrdersLive orgId={organization.id} alertOn="kitchen" />
+        </div>
       </div>
 
       {!!awaiting && (

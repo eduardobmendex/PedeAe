@@ -29,8 +29,12 @@ export default async function ReportsPage({ params, searchParams }: PageProps<"/
   const period = resolvePeriod(await searchParams, today);
   const supabase = await createClient();
 
-  const { data, error } = await supabase.rpc("report_sales", { p_org_id: organization.id, p_from: period.from, p_to: period.to });
+  const [{ data, error }, { data: payData }] = await Promise.all([
+    supabase.rpc("report_sales", { p_org_id: organization.id, p_from: period.from, p_to: period.to }),
+    supabase.rpc("report_payments", { p_org_id: organization.id, p_from: period.from, p_to: period.to }),
+  ]);
   const report = data as Report | null;
+  const payments = payData as PaymentsReport | null;
   const base = `/painel/${slug}/relatorios`;
   const range = `de=${period.from}&ate=${period.to}`;
 
@@ -97,7 +101,10 @@ export default async function ReportsPage({ params, searchParams }: PageProps<"/
       {error || !report ? (
         <EmptyState title="Não foi possível gerar o relatório">Tente novamente em instantes.</EmptyState>
       ) : (
-        <ReportBody report={report} days={daysBetween(period.from, period.to) + 1} />
+        <>
+          <ReportBody report={report} days={daysBetween(period.from, period.to) + 1} />
+          {payments && <PaymentsSection report={payments} csvHref={`${base}/csv?tipo=recebimentos&${range}`} />}
+        </>
       )}
     </>
   );
@@ -171,6 +178,72 @@ function ReportBody({ report, days }: { report: Report; days: number }) {
     </div>
   );
 }
+
+type PaymentsReport = {
+  total_cents: number;
+  by_method: { method: string; count: number; amount_cents: number; online_cents: number | null }[];
+  by_person: { name: string; count: number; amount_cents: number }[];
+  service_fee_cents: number;
+  tabs_closed: number;
+};
+
+/** Fechamento de caixa: quanto entrou em cada forma de pagamento, quem recebeu e a taxa de serviço. */
+function PaymentsSection({ report, csvHref }: { report: PaymentsReport; csvHref: string }) {
+  const total = report.total_cents || 1;
+  return (
+    <section className="mt-8 flex flex-col gap-4" aria-labelledby="recebimentos">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 id="recebimentos" className="text-lg font-semibold">
+            Recebimentos
+          </h2>
+          <p className="text-sm text-muted">O que entrou nas contas das mesas no período, para conferir o caixa e as maquininhas.</p>
+        </div>
+        <a href={csvHref} className="inline-flex h-10 items-center rounded-lg border border-border-strong px-4 text-sm font-medium hover:bg-hover">
+          Exportar recebimentos (CSV)
+        </a>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Stat label="Total recebido" value={formatBRL(report.total_cents)} />
+        <Stat label="Taxa de serviço" value={formatBRL(report.service_fee_cents)} note="Das contas fechadas no período" />
+        <Stat label="Contas fechadas" value={String(report.tabs_closed)} />
+      </div>
+      {report.total_cents === 0 ? (
+        <p className="rounded-lg bg-surface-2 px-4 py-3 text-sm text-muted">Nenhum recebimento registrado neste período.</p>
+      ) : (
+        <div className="grid items-start gap-6 xl:grid-cols-2">
+          <Card className="flex flex-col gap-3">
+            <h3 className="font-semibold">Por forma de pagamento</h3>
+            <ul className="flex flex-col gap-3">
+              {report.by_method.map((m) => (
+                <li key={m.method}>
+                  <div className="mb-1 flex justify-between gap-3 text-sm">
+                    <span className="font-medium">
+                      {methodLabel(m.method)} <span className="font-normal text-muted">· {m.count}x</span>
+                    </span>
+                    <span className="tabular-nums">{formatBRL(m.amount_cents)}</span>
+                  </div>
+                  {/* Barra de proporção: uma série, cor do tema com contraste garantido. */}
+                  <div className="h-2 rounded-full bg-surface-2" aria-hidden>
+                    <div className="h-2 rounded-full" style={{ width: `${(m.amount_cents / total) * 100}%`, background: "var(--brand-text)" }} />
+                  </div>
+                  {m.online_cents ? <p className="mt-1 text-xs text-muted">{formatBRL(m.online_cents)} pagos online pelo cardápio</p> : null}
+                </li>
+              ))}
+            </ul>
+          </Card>
+          <Card className="p-0">
+            <h3 className="p-4 pb-2 font-semibold">Por quem recebeu</h3>
+            <DataTable head={["Pessoa", "Pagamentos", "Valor"]} rows={report.by_person.map((p) => [p.name, String(p.count), formatBRL(p.amount_cents)])} />
+          </Card>
+        </div>
+      )}
+    </section>
+  );
+}
+
+const METHOD_LABELS: Record<string, string> = { dinheiro: "Dinheiro", credito: "Cartão de crédito", debito: "Cartão de débito", pix: "Pix" };
+const methodLabel = (m: string) => METHOD_LABELS[m] ?? m;
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (

@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 import { formatBRL } from "@/lib/money";
 import { imageUrl } from "@/lib/storage";
+import { isSoldOut } from "@/lib/sold-out";
 import { createClient } from "@/lib/supabase/server";
 import { publishCategories, toggleProductAvailable, toggleProductSoldOut } from "./actions";
 import { CategoryManager } from "./category-manager";
@@ -30,7 +31,7 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/pai
       .order("name"),
     supabase
       .from("products")
-      .select("id, category_id, name, price_cents, image_path, available, featured, sold_out")
+      .select("id, category_id, name, price_cents, image_path, available, featured, sold_out, sold_out_until")
       .eq("organization_id", organization.id)
       .order("sort_order")
       .order("name"),
@@ -152,13 +153,17 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/pai
                                 <p className="text-sm text-muted">{formatBRL(p.price_cents)}</p>
                               </Link>
                               <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center">
-                                <form action={toggleProductSoldOut.bind(null, slug, p.id, !p.sold_out)}>
+                                <form action={toggleProductSoldOut.bind(null, slug, p.id, !isSoldOut(p.sold_out, p.sold_out_until))}>
                                   <button
                                     type="submit"
                                     className="rounded-lg px-1.5 py-1 text-xs font-medium hover:bg-hover"
-                                    title={p.sold_out ? "Voltar a vender" : "Marcar como esgotado (o cliente vê, mas não pede)"}
+                                    title={isSoldOut(p.sold_out, p.sold_out_until) ? "Voltar a vender" : "Esgotar só por hoje (o cliente vê, mas não pede; volta sozinho amanhã)"}
                                   >
-                                    {p.sold_out ? <Badge tone="danger">esgotado</Badge> : <Badge tone="success">à venda</Badge>}
+                                    {isSoldOut(p.sold_out, p.sold_out_until) ? (
+                                      <Badge tone="danger">{p.sold_out_until ? "esgotado hoje" : "esgotado"}</Badge>
+                                    ) : (
+                                      <Badge tone="success">à venda</Badge>
+                                    )}
                                   </button>
                                 </form>
                                 <form action={toggleProductAvailable.bind(null, slug, p.id, !p.available)}>

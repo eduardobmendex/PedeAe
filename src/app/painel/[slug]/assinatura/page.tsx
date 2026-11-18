@@ -7,7 +7,8 @@ import { formatBRL } from "@/lib/money";
 import { businessToday } from "@/lib/report-period";
 import { createClient } from "@/lib/supabase/server";
 import { deletePayment } from "./actions";
-import { BillingForm, PaymentForm } from "./billing-forms";
+import { BillingForm, PaymentForm, PaymentSettingsForm } from "./billing-forms";
+import { paymentsConfigured, simulatorEnabled } from "@/lib/payments/service";
 
 export const metadata: Metadata = { title: "Assinatura" };
 
@@ -25,7 +26,7 @@ export default async function SubscriptionPage({ params }: PageProps<"/painel/[s
   if (!isPlatformAdmin) notFound();
 
   const supabase = await createClient();
-  const [{ data: row }, { data: payments }, { data: org }] = await Promise.all([
+  const [{ data: row }, { data: payments }, { data: org }, { data: online }] = await Promise.all([
     supabase.from("organization_billing").select("plan, monthly_price_cents, due_day, trial_ends_at, notes").eq("organization_id", organization.id).maybeSingle(),
     supabase
       .from("billing_payments")
@@ -33,7 +34,10 @@ export default async function SubscriptionPage({ params }: PageProps<"/painel/[s
       .eq("organization_id", organization.id)
       .order("reference_month", { ascending: false }),
     supabase.from("organizations").select("created_at").eq("id", organization.id).single(),
+    supabase.from("organization_payment_settings").select("enabled, pagarme_recipient_id, platform_fee_percent").eq("organization_id", organization.id).maybeSingle(),
   ]);
+  const serverReady = paymentsConfigured();
+  const simulator = simulatorEnabled();
 
   const billing: Billing = {
     plan: (row?.plan ?? "trial") as Billing["plan"],
@@ -89,6 +93,29 @@ export default async function SubscriptionPage({ params }: PageProps<"/painel/[s
           />
         </Card>
       </div>
+
+      <Card className="mt-6">
+        <h2 className="mb-1 font-semibold">Pagamento online (Pagar.me)</h2>
+        <p className="mb-4 text-sm text-muted">
+          Os clientes pagam com Pix ou cartão pelo cardápio (na mesa, antes do pedido ou por link). O dinheiro é dividido pelo split do Pagar.me direto para o recebedor do estabelecimento.
+        </p>
+        {!serverReady && (
+          <p className="mb-4 rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning">
+            O servidor ainda não tem as chaves do Pagar.me e do Supabase configuradas (PAGARME_SECRET_KEY, NEXT_PUBLIC_PAGARME_PUBLIC_KEY, SUPABASE_SECRET_KEY). Mesmo ativado aqui, o cardápio não oferece pagamento online até isso ser feito.
+          </p>
+        )}
+        {serverReady && simulator && (
+          <p className="mb-4 rounded-lg bg-info-soft px-3 py-2 text-sm text-info">Modo simulador: nenhum pagamento é real.</p>
+        )}
+        <PaymentSettingsForm
+          slug={slug}
+          initial={{
+            enabled: online?.enabled ?? false,
+            recipientId: online?.pagarme_recipient_id ?? "",
+            platformFeePercent: online?.platform_fee_percent ?? 0,
+          }}
+        />
+      </Card>
 
       <Card className="mt-6 p-0">
         <h2 className="p-4 pb-2 font-semibold">Pagamentos</h2>

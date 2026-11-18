@@ -7,6 +7,7 @@ import { getOrgContext } from "@/lib/auth";
 import { formatBRL } from "@/lib/money";
 import { orderStatusLabels, orderStatusTone, type OrderStatus } from "@/lib/orders";
 import { can } from "@/lib/permissions";
+import { paymentsConfigured } from "@/lib/payments/service";
 import { createClient } from "@/lib/supabase/server";
 import { countsInTab, DEFAULT_SERVICE_FEE } from "@/lib/tab";
 import { TabPanel } from "./tab-panel";
@@ -39,13 +40,15 @@ export default async function TabPage({ params }: PageProps<"/painel/[slug]/cont
       `id, status, opened_at, closed_at, service_fee_percent, total_cents, tables (name),
        orders (id, order_number, status, total_cents, discount_cents, coupon_code, created_at,
          order_items (id, product_name_snapshot, quantity, line_total_cents, sort_order)),
-       tab_payments (id, amount_cents, method, created_at)`,
+       tab_payments (id, amount_cents, method, created_at, payment_intent_id)`,
     )
     .eq("organization_id", organization.id)
     .eq("id", sessionId)
     .maybeSingle();
   if (!session) notFound();
 
+  const { data: online } = await supabase.from("organization_payment_settings").select("enabled").eq("organization_id", organization.id).maybeSingle();
+  const onlinePayments = online?.enabled === true && paymentsConfigured();
   const orders = ([...(session.orders ?? [])] as unknown as Order[]).sort((a, b) => a.order_number - b.order_number);
   const tableName = (session.tables as unknown as { name: string } | null)?.name ?? "Mesa";
   const isOpen = session.status === "open";
@@ -128,10 +131,11 @@ export default async function TabPage({ params }: PageProps<"/painel/[slug]/cont
           isOpen={isOpen}
           activeOrders={activeOrders}
           orderTotals={orders.filter((o) => countsInTab(o.status)).map((o) => o.total_cents)}
-          payments={(session.tab_payments ?? []) as { id: string; amount_cents: number; method: string; created_at: string }[]}
+          payments={(session.tab_payments ?? []) as { id: string; amount_cents: number; method: string; created_at: string; payment_intent_id: string | null }[]}
           initialFee={isOpen ? DEFAULT_SERVICE_FEE : Number(session.service_fee_percent)}
           canReceive={can(membership, "receive_payments")}
           canClose={can(membership, "close_tabs")}
+          onlinePayments={onlinePayments}
         />
       </div>
     </>

@@ -60,6 +60,13 @@ export class Db {
     await this.client.query(`set local role ${user ? "authenticated" : "anon"}`);
   }
 
+  /** Passa a agir como o servidor (role service_role), como faz o webhook de pagamento. */
+  async asService() {
+    await this.client.query("reset role");
+    await this.client.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ role: "service_role" })]);
+    await this.client.query("set local role service_role");
+  }
+
   async query<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
     const res = await this.client.query(sql, params);
     return res.rows as T[];

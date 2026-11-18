@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { PublicMenu } from "@/components/public-menu/public-menu";
 import { MenuNotice, MenuShell, MenuSkeleton } from "@/components/public-menu/menu-shell";
 import { getPublicMenu, resolveTableToken } from "@/lib/menu";
+import { paymentsConfigured } from "@/lib/payments/service";
 
 export async function generateMetadata({ params }: PageProps<"/q/[token]">): Promise<Metadata> {
   const { token } = await params;
@@ -44,7 +45,7 @@ async function TableMenuLoader({ params }: { params: PageProps<"/q/[token]">["pa
 
   return (
     <MenuShell menu={menu}>
-      <PublicMenu menu={menu} table={{ name: table.table_name, token }} />
+      <PublicMenu menu={menu} table={{ name: table.table_name, token }} onlinePayments={menu.online_payments === true && paymentsConfigured()} />
     </MenuShell>
   );
 }

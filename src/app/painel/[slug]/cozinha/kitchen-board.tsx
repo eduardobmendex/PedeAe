@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { OrderStatus } from "@/lib/orders";
 import { StatusButton } from "../pedidos/order-card";
+import { useAutoPrint } from "./auto-print";
 
 export type KitchenOrder = {
   id: string;
@@ -30,6 +31,8 @@ const LATE_MIN = 20;
 export function KitchenBoard({ slug, orders }: { slug: string; orders: KitchenOrder[] }) {
   const now = useNow(30_000);
   const [tab, setTab] = useState<OrderStatus>("received");
+  const queued = useMemo(() => orders.filter((o) => o.status === "received").map((o) => o.id), [orders]);
+  useAutoPrint(slug, queued);
 
   return (
     <>
