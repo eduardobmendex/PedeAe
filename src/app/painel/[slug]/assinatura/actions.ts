@@ -107,7 +107,7 @@ const paymentSettingsSchema = z.object({
   recipient_id: z
     .string()
     .trim()
-    .regex(/^(rp_[A-Za-z0-9]+)?$/, "O recebedor do Pagar.me começa com rp_"),
+    .regex(/^((re|rp)_[A-Za-z0-9]+)?$/, "O ID do recebedor do Pagar.me começa com re_ (ou rp_)"),
   platform_fee_percent: z.coerce.number().int("Comissão em número inteiro").min(0).max(20, "Comissão entre 0% e 20%"),
 });
 
@@ -117,7 +117,7 @@ export async function savePaymentSettings(slug: string, _prev: FormState, formDa
   const parsed = paymentSettingsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const p = parsed.data;
-  if (p.enabled && !p.recipient_id) return { error: "Para ativar, informe o recebedor (rp_...) do estabelecimento no Pagar.me." };
+  if (p.enabled && !p.recipient_id) return { error: "Para ativar, informe o recebedor (re_...) do estabelecimento no Pagar.me." };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("platform_set_payment_settings", {

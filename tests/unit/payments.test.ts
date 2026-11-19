@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildOrderBody, buildSplit, markSimulatedPaid, parseOrder, paymentProvider, type CreateOrderInput } from "@/lib/payments/pagarme";
+import { buildOrderBody, buildSplit, markSimulatedPaid, parseOrder, paymentProvider, platformRecipientId, type CreateOrderInput } from "@/lib/payments/pagarme";
 import { isValidCpf, payerError, splitPhone } from "@/lib/payments/types";
 
 const payer = { name: "Ana Souza", email: "Ana@Exemplo.com ", document: "529.982.247-25", phone: "(71) 99876-5432" };
@@ -56,6 +56,18 @@ describe("Pagar.me: split", () => {
     expect(buildSplit({ recipientId: "rp_loja", platformRecipientId: "rp_pedeae", platformFeePercent: 0 })[0].amount).toBe(100);
     expect(buildSplit({ recipientId: "rp_loja", platformRecipientId: "rp_pedeae", platformFeePercent: 90 })[1].amount).toBe(20); // limite
   });
+
+  it("recebedor da plataforma: aceita re_/rp_ e ignora IDs de conta (acc_)", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubEnv("PAGARME_PLATFORM_RECIPIENT_ID", "re_abc123");
+    expect(platformRecipientId()).toBe("re_abc123");
+    vi.stubEnv("PAGARME_PLATFORM_RECIPIENT_ID", "rp_abc123");
+    expect(platformRecipientId()).toBe("rp_abc123");
+    vi.stubEnv("PAGARME_PLATFORM_RECIPIENT_ID", "acc_abc123");
+    expect(platformRecipientId()).toBeUndefined();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
 });
 
 describe("Pagar.me: resposta", () => {
@@ -72,6 +84,11 @@ describe("Pagar.me: resposta", () => {
       status: "failed",
       failureReason: "Saldo insuficiente",
     });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(
+      parseOrder({ id: "or_4", status: "failed", charges: [{ status: "failed", last_transaction: { gateway_response: { errors: [{ message: "action_forbidden | | Sem ambiente" }] } } }] }).failureReason,
+    ).toMatch(/indisponível/);
+    vi.restoreAllMocks();
   });
 });
 

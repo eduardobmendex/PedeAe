@@ -20,7 +20,7 @@ async function seed(db: Db, admin: TestUser): Promise<Seed> {
 
 async function enableOnline(db: Db, orgId: string) {
   await db.as(await db.getPlatformAdmin());
-  await db.query("select public.platform_set_payment_settings($1, true, 'rp_teste123', 5)", [orgId]);
+  await db.query("select public.platform_set_payment_settings($1, true, 're_teste123', 5)", [orgId]);
 }
 
 async function order(db: Db, s: Seed, qty: number, prepay = false) {

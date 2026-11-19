@@ -97,8 +97,8 @@ export function PaymentSettingsForm({
         <input type="checkbox" name="enabled" defaultChecked={initial.enabled} />
         Aceitar pagamento online (Pix e cartão) no cardápio
       </label>
-      <Field label="Recebedor do estabelecimento no Pagar.me" htmlFor="pg-recipient" hint="ID do recebedor (rp_...) cadastrado no Pagar.me com a conta bancária do estabelecimento. O valor de cada pagamento vai para ele.">
-        <Input id="pg-recipient" name="recipient_id" defaultValue={initial.recipientId} placeholder="rp_..." autoComplete="off" />
+      <Field label="Recebedor do estabelecimento no Pagar.me" htmlFor="pg-recipient" hint="ID do recebedor (re_...) cadastrado no Pagar.me com a conta bancária do estabelecimento. O valor de cada pagamento vai para ele.">
+        <Input id="pg-recipient" name="recipient_id" defaultValue={initial.recipientId} placeholder="re_..." autoComplete="off" />
       </Field>
       <Field label="Comissão da PedeAe (%)" htmlFor="pg-fee" hint="Parte de cada pagamento online que vai para o recebedor da PedeAe (PAGARME_PLATFORM_RECIPIENT_ID). 0 = sem comissão.">
         <Input id="pg-fee" name="platform_fee_percent" type="number" min={0} max={20} step={1} defaultValue={initial.platformFeePercent} />

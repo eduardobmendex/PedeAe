@@ -128,6 +128,12 @@ type RawOrder = {
 export function parseOrder(raw: RawOrder): ProviderOrder {
   const charge = raw.charges?.[0];
   const tx = charge?.last_transaction;
+  // Erro do gateway (ex.: "action_forbidden | | Sem ambiente configurado…") é configuração da conta, não do cliente.
+  const gatewayFailure = (msg?: string) => {
+    if (!msg) return undefined;
+    console.error("[pagarme] gateway recusou:", msg);
+    return "Esta forma de pagamento está indisponível agora. Tente a outra opção ou avise a equipe.";
+  };
   const paid = raw.status === "paid" || charge?.status === "paid";
   return {
     id: raw.id,
@@ -137,7 +143,7 @@ export function parseOrder(raw: RawOrder): ProviderOrder {
     pix: tx?.qr_code ? { qrCode: tx.qr_code, qrCodeUrl: tx.qr_code_url ?? "", expiresAt: tx.expires_at ?? "" } : undefined,
     failureReason:
       raw.status === "failed" || charge?.status === "failed"
-        ? (tx?.acquirer_message ?? tx?.gateway_response?.errors?.[0]?.message ?? "Pagamento recusado")
+        ? (tx?.acquirer_message ?? gatewayFailure(tx?.gateway_response?.errors?.[0]?.message) ?? "Pagamento recusado")
         : undefined,
   };
 }
@@ -223,4 +229,14 @@ export function paymentProvider(): PaymentProvider | null {
   return null;
 }
 
-export const platformRecipientId = () => process.env.PAGARME_PLATFORM_RECIPIENT_ID || undefined;
+/** IDs de recebedor do Pagar.me: "re_..." (contas atuais) ou "rp_..." (contas antigas). */
+export const RECIPIENT_ID_RE = /^(re|rp)_[A-Za-z0-9]+$/;
+
+/** Recebedor da comissão da PedeAe. Um ID que não é de recebedor (ex.: "acc_...") é ignorado, para não quebrar o split. */
+export const platformRecipientId = () => {
+  const id = process.env.PAGARME_PLATFORM_RECIPIENT_ID?.trim();
+  if (!id) return undefined;
+  if (RECIPIENT_ID_RE.test(id)) return id;
+  console.error("[pagarme] PAGARME_PLATFORM_RECIPIENT_ID não é um recebedor (re_... ou rp_...); comissão desativada.");
+  return undefined;
+};
