@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Badge, Button, Card, PageHeader } from "@/components/ui";
+import { Badge, Button, ButtonLink, Card, PageHeader } from "@/components/ui";
 import { getOrgContext } from "@/lib/auth";
 import { billingStatus, paymentMethods, plans, type Billing, type PaymentMethod } from "@/lib/billing";
 import { formatBRL } from "@/lib/money";
 import { businessToday } from "@/lib/report-period";
 import { createClient } from "@/lib/supabase/server";
 import { deletePayment } from "./actions";
-import { BillingForm, PaymentForm, PaymentSettingsForm } from "./billing-forms";
+import { BillingForm, PaymentForm } from "./billing-forms";
+import { isRecipientStatus, recipientStatuses } from "@/lib/payments/recipient-status";
 import { paymentsConfigured, simulatorEnabled } from "@/lib/payments/service";
 
 export const metadata: Metadata = { title: "Assinatura" };
@@ -34,7 +35,7 @@ export default async function SubscriptionPage({ params }: PageProps<"/painel/[s
       .eq("organization_id", organization.id)
       .order("reference_month", { ascending: false }),
     supabase.from("organizations").select("created_at").eq("id", organization.id).single(),
-    supabase.from("organization_payment_settings").select("enabled, pagarme_recipient_id, platform_fee_percent").eq("organization_id", organization.id).maybeSingle(),
+    supabase.from("organization_payment_settings").select("enabled, pagarme_recipient_id, recipient_status").eq("organization_id", organization.id).maybeSingle(),
   ]);
   const serverReady = paymentsConfigured();
   const simulator = simulatorEnabled();
@@ -107,14 +108,24 @@ export default async function SubscriptionPage({ params }: PageProps<"/painel/[s
         {serverReady && simulator && (
           <p className="mb-4 rounded-lg bg-info-soft px-3 py-2 text-sm text-info">Modo simulador: nenhum pagamento é real.</p>
         )}
-        <PaymentSettingsForm
-          slug={slug}
-          initial={{
-            enabled: online?.enabled ?? false,
-            recipientId: online?.pagarme_recipient_id ?? "",
-            platformFeePercent: online?.platform_fee_percent ?? 0,
-          }}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          {online?.pagarme_recipient_id ? (
+            <>
+              <Badge tone={online.recipient_status === "active" ? "success" : "warning"}>
+                {isRecipientStatus(online.recipient_status) ? recipientStatuses[online.recipient_status].label : "Status desconhecido"}
+              </Badge>
+              <Badge tone={online.enabled && online.recipient_status === "active" ? "success" : "neutral"}>
+                {!online.enabled ? "Desligado" : online.recipient_status === "active" ? "Funcionando" : "Ligado · aguarda KYC"}
+              </Badge>
+              <span className="font-mono text-xs text-muted">{online.pagarme_recipient_id}</span>
+            </>
+          ) : (
+            <Badge>Sem recebedor (KYC não iniciado)</Badge>
+          )}
+          <ButtonLink href={`/painel/recebedores/${slug}`} variant="secondary" className="ml-auto">
+            Recebedor e KYC
+          </ButtonLink>
+        </div>
       </Card>
 
       <Card className="mt-6 p-0">

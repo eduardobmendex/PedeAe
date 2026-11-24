@@ -15,7 +15,7 @@ async function fillPayer(page: import("@playwright/test").Page) {
 
 test("pedido pago antes (Pix) vai para a cozinha; conta paga com cartão entra na mesa", async ({ browser, shop }) => {
   test.setTimeout(180_000);
-  await sql("insert into organization_payment_settings (organization_id, enabled, pagarme_recipient_id) values ($1, true, 'rp_e2eteste')", [shop.orgId]);
+  await sql("insert into organization_payment_settings (organization_id, enabled, pagarme_recipient_id, recipient_status) values ($1, true, 're_e2eteste', 'active')", [shop.orgId]);
 
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await ctx.newPage();

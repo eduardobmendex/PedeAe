@@ -148,25 +148,43 @@ export function parseOrder(raw: RawOrder): ProviderOrder {
   };
 }
 
+/** Chamada autenticada à API v5 (Basic com a chave secreta). Erros HTTP viram PagarmeError. */
+export async function pagarmeRequest<T>(secretKey: string, path: string, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${secretKey}:`).toString("base64")}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      ...init.headers,
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(20_000),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new PagarmeError(`Pagar.me ${res.status}`, res.status, body);
+  return body as T;
+}
+
+/** Mensagem de erro do Pagar.me (para log e para o Admin Geral; nunca para o cliente final). */
+export function pagarmeErrorMessage(e: unknown): string {
+  if (!(e instanceof PagarmeError)) return e instanceof Error && e.name === "TimeoutError" ? "O Pagar.me demorou a responder." : "Falha ao falar com o Pagar.me.";
+  const d = e.details as { message?: string; errors?: Record<string, string[]> | { message?: string }[] } | null;
+  const parts: string[] = [];
+  if (d?.message) parts.push(d.message);
+  if (Array.isArray(d?.errors)) parts.push(...d.errors.map((x) => x.message ?? "").filter(Boolean));
+  else if (d?.errors) parts.push(...Object.entries(d.errors).map(([k, v]) => `${k}: ${v.join(", ")}`));
+  if (e.status === 401) return "Chave do Pagar.me inválida (401).";
+  if (e.status === 404 && !parts.length) return "Não encontrado no Pagar.me (404).";
+  return parts.length ? parts.join(" · ").slice(0, 500) : `Pagar.me respondeu ${e.status}.`;
+}
+
 class PagarmeProvider implements PaymentProvider {
   readonly name = "pagarme" as const;
   constructor(private readonly secretKey: string) {}
 
-  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const res = await fetch(`${API_URL}${path}`, {
-      ...init,
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${this.secretKey}:`).toString("base64")}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        ...init.headers,
-      },
-      cache: "no-store",
-      signal: AbortSignal.timeout(20_000),
-    });
-    const body = await res.json().catch(() => null);
-    if (!res.ok) throw new PagarmeError(`Pagar.me ${res.status}`, res.status, body);
-    return body as T;
+  private request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    return pagarmeRequest<T>(this.secretKey, path, init);
   }
 
   async createOrder(input: CreateOrderInput) {

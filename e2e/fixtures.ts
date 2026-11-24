@@ -94,6 +94,7 @@ async function removeShop(shop: { orgId: string; userId: string }) {
     await db.query("set local session_replication_role = replica");
     for (const t of ORG_TABLES) await db.query(`delete from public.${t} where organization_id = $1`, [shop.orgId]);
     await db.query("delete from public.organizations where id = $1", [shop.orgId]);
+    await db.query("delete from public.platform_admins where user_id = $1", [shop.userId]);
     await db.query("delete from public.profiles where id = $1", [shop.userId]);
     await db.query("delete from auth.identities where user_id = $1", [shop.userId]);
     await db.query("delete from auth.users where id = $1", [shop.userId]);

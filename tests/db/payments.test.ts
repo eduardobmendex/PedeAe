@@ -21,6 +21,8 @@ async function seed(db: Db, admin: TestUser): Promise<Seed> {
 async function enableOnline(db: Db, orgId: string) {
   await db.as(await db.getPlatformAdmin());
   await db.query("select public.platform_set_payment_settings($1, true, 're_teste123', 5)", [orgId]);
+  // KYC aprovado no Pagar.me (status consultado pela tela de recebedores).
+  await db.query("select public.platform_sync_recipient($1, 're_teste123', 'active', 'approved', 'ok', 'corporation', 'Loja')", [orgId]);
 }
 
 async function order(db: Db, s: Seed, qty: number, prepay = false) {
@@ -78,9 +80,16 @@ describe("pagamento online", () => {
       expect(await db.expectError("select public.platform_set_payment_settings($1, true, null, 0)", [s.orgId])).toMatch(/check/);
       await db.query("select public.platform_set_payment_settings($1, true, 'rp_teste123', 5)", [s.orgId]);
 
-      await db.as(null);
-      const [{ m }] = await db.query<{ m: { online_payments: boolean } }>("select public.get_public_menu($1) as m", [s.slug]);
-      expect(m.online_payments).toBe(true);
+      // Ligado, mas sem KYC aprovado: ainda não recebe.
+      const menu = async () => {
+        await db.as(null);
+        const [{ m }] = await db.query<{ m: { online_payments: boolean } }>("select public.get_public_menu($1) as m", [s.slug]);
+        return m.online_payments;
+      };
+      expect(await menu()).toBe(false);
+      await db.as(await db.getPlatformAdmin());
+      await db.query("select public.platform_sync_recipient($1, 'rp_teste123', 'active', 'approved', 'ok', null, null)", [s.orgId]);
+      expect(await menu()).toBe(true);
     }));
 
   it("conta da mesa: paga a conta toda ou uma parte; confirmação só pelo servidor e sem duplicar", () =>
@@ -201,5 +210,82 @@ describe("recebimentos no relatório", () => {
       expect(r.by_person).toHaveLength(1);
       expect(r.service_fee_cents).toBe(1000);
       expect(r.tabs_closed).toBe(1);
+    }));
+});
+
+describe("recebedores e KYC", () => {
+  it("status vem do Pagar.me: só Admin Geral vincula; webhook atualiza; bloqueado desliga o pagamento", () =>
+    withRollback(async (db) => {
+      const ana = await db.createUser("ana");
+      const s = await seed(db, ana);
+
+      await db.as(ana);
+      expect(await db.expectError("select public.platform_sync_recipient($1, 're_abc', 'active', 'approved', 'ok', null, null)", [s.orgId])).toMatch(/forbidden/);
+      expect(await db.expectError("select public.service_sync_recipient('re_abc', 'active', 'approved', 'ok')")).toMatch(/permission denied/);
+
+      const admin = await db.getPlatformAdmin();
+      await db.as(admin);
+      expect(await db.expectError("select public.platform_sync_recipient($1, 'acc_abc', 'active', null, null, null, null)", [s.orgId])).toMatch(/invalid_recipient/);
+      // Iniciar KYC: recebedor criado, Pagar.me pede documentos.
+      const [{ changed }] = await db.query<{ changed: boolean }>(
+        "select public.platform_sync_recipient($1, 're_abc', 'affiliation', 'partially_denied', 'additional_documents_required', 'corporation', 'Loja') as changed",
+        [s.orgId],
+      );
+      expect(changed).toBe(true);
+      await db.query("select public.platform_set_payment_settings($1, true, 're_abc', 0)", [s.orgId]); // liga antes da aprovação
+      await db.query("select public.platform_mark_kyc_link($1)", [s.orgId]);
+      const online = async () => {
+        await db.as(null);
+        const [{ m }] = await db.query<{ m: { online_payments: boolean } }>("select public.get_public_menu($1) as m", [s.slug]);
+        return m.online_payments;
+      };
+      expect(await online()).toBe(false);
+
+      // Webhook recipient.updated (chave secreta do servidor): aprovado → começa a receber sozinho.
+      await db.asService();
+      const [{ slug }] = await db.query<{ slug: string | null }>("select public.service_sync_recipient('re_abc', 'active', 'approved', 'ok') as slug");
+      expect(slug).toBe(s.slug);
+      const [{ again }] = await db.query<{ again: string | null }>("select public.service_sync_recipient('re_abc', 'active', 'approved', 'ok') as again");
+      expect(again).toBeNull(); // sem mudança
+      const [{ other }] = await db.query<{ other: string | null }>("select public.service_sync_recipient('re_deoutro', 'active', null, null) as other");
+      expect(other).toBeNull(); // recebedor que não é nosso
+      expect(await online()).toBe(true);
+
+      await db.asService();
+      await db.query("select public.service_sync_recipient('re_abc', 'blocked', 'approved', 'ok')");
+      expect(await online()).toBe(false);
+
+      await db.as(admin);
+      const [row] = await db.query<{ recipient_type: string; recipient_name: string; kyc_link_sent_at: string | null }>(
+        "select recipient_type, recipient_name, kyc_link_sent_at from organization_payment_settings where organization_id = $1",
+        [s.orgId],
+      );
+      expect(row).toMatchObject({ recipient_type: "corporation", recipient_name: "Loja" });
+      expect(row.kyc_link_sent_at).not.toBeNull();
+      const actions = await db.query<{ action: string }>(
+        "select action from audit_logs where organization_id = $1 and action like 'payments.%' order by id",
+        [s.orgId],
+      );
+      expect(actions.map((a) => a.action)).toEqual([
+        "payments.recipient_status",
+        "payments.settings_updated",
+        "payments.kyc_link_created",
+        "payments.recipient_status",
+        "payments.recipient_status",
+      ]);
+
+      // Trocar o recebedor zera o status conhecido.
+      await db.query("select public.platform_set_payment_settings($1, true, 're_novo', 0)", [s.orgId]);
+      const [{ recipient_status }] = await db.query<{ recipient_status: string | null }>(
+        "select recipient_status from organization_payment_settings where organization_id = $1",
+        [s.orgId],
+      );
+      expect(recipient_status).toBeNull();
+    }));
+
+  it("slug 'recebedores' é reservado (rota do painel)", () =>
+    withRollback(async (db) => {
+      await db.as(await db.getPlatformAdmin());
+      expect(await db.expectError("select public.platform_create_organization('Teste', 'recebedores')")).toMatch(/slug_not_reserved|check/);
     }));
 });

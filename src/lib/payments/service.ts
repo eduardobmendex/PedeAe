@@ -47,10 +47,11 @@ async function splitFor(orgId: string) {
   const db = createAdminClient()!;
   const { data } = await db
     .from("organization_payment_settings")
-    .select("enabled, pagarme_recipient_id, platform_fee_percent")
+    .select("enabled, pagarme_recipient_id, platform_fee_percent, recipient_status")
     .eq("organization_id", orgId)
     .maybeSingle();
-  if (!data?.enabled || !data.pagarme_recipient_id) return null;
+  // Só recebedor com KYC aprovado recebe (o banco já bloqueia criar a cobrança; aqui é a segunda trava).
+  if (!data?.enabled || !data.pagarme_recipient_id || data.recipient_status !== "active") return null;
   return { recipientId: data.pagarme_recipient_id as string, platformRecipientId: platformRecipientId(), platformFeePercent: data.platform_fee_percent as number };
 }
 

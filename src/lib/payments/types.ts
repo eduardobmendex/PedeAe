@@ -36,6 +36,19 @@ export function isValidCpf(value: string) {
   return digit(9) === Number(cpf[9]) && digit(10) === Number(cpf[10]);
 }
 
+/** CNPJ com dígitos verificadores válidos. */
+export function isValidCnpj(value: string) {
+  const c = onlyDigits(value);
+  if (c.length !== 14 || /^(\d)\1{13}$/.test(c)) return false;
+  const digit = (len: number) => {
+    const weights = len === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    const sum = weights.reduce((n, w, i) => n + w * Number(c[i]), 0);
+    const r = sum % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  return digit(12) === Number(c[12]) && digit(13) === Number(c[13]);
+}
+
 /** Celular brasileiro com DDD: 10 ou 11 dígitos (sem o +55). */
 export function splitPhone(value: string) {
   let d = onlyDigits(value);

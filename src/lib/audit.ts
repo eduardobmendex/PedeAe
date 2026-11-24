@@ -1,5 +1,6 @@
 import { formatBRL } from "./money";
 import { orderStatusLabels, type OrderStatus } from "./orders";
+import { isRecipientStatus, kycInfo, recipientStatuses } from "./payments/recipient-status";
 import { roleLabels, type MemberRole } from "./validation";
 
 // Tradução dos registros de auditoria (gravados pelo banco) para frases legíveis.
@@ -180,7 +181,28 @@ export function describeAudit(entry: AuditEntry, name?: string): { title: string
         details: [`Valor: ${formatBRL(Number(m.amount_cents ?? 0))}`, `Forma: ${m.method === "credit_card" ? "cartão de crédito" : "Pix"}`],
       };
     case "payments.settings_updated":
-      return { title: "Alterou o pagamento online", details: [`Ativo: ${m.enabled ? "sim" : "não"}`, `Comissão da PedeAe: ${m.platform_fee_percent ?? 0}%`] };
+      return {
+        title: "Alterou o pagamento online",
+        details: [
+          `Ativo: ${m.enabled ? "sim" : "não"}`,
+          `Comissão da PedeAe: ${m.platform_fee_percent ?? 0}%`,
+          ...(m.recipient_id !== undefined ? [`Recebedor: ${m.recipient_id ?? "nenhum"}`] : []),
+        ],
+      };
+    case "payments.recipient_status": {
+      const label = (s: unknown) => (isRecipientStatus(s) ? recipientStatuses[s].label : s ? String(s) : "—");
+      const kyc = kycInfo(m.kyc_status as string | null, m.kyc_status_reason as string | null);
+      return {
+        title: m.previous_status ? "Status do recebedor mudou no Pagar.me" : "Vinculou o recebedor do Pagar.me",
+        details: [
+          `Recebedor: ${m.recipient_id}`,
+          m.previous_status ? `Status: ${label(m.previous_status)} → ${label(m.status)}` : `Status: ${label(m.status)}`,
+          ...(kyc ? [`KYC: ${kyc.label}`] : []),
+        ],
+      };
+    }
+    case "payments.kyc_link_created":
+      return { title: "Gerou o link de KYC do Pagar.me", details: [] };
     case "billing.updated":
       return { title: "Alterou o plano da assinatura", details: [`Plano: ${m.plan}`, `Mensalidade: ${formatBRL(Number(m.monthly_price_cents ?? 0))}`] };
     case "billing.payment_recorded":

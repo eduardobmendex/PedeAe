@@ -53,6 +53,11 @@ export async function PlatformHome() {
         <PageHeader
           title="Administração da plataforma"
           description={`${list.length} estabelecimento(s) · ${active} ativo(s). Você tem acesso de administrador em todos.`}
+          actions={
+            <Link href="/painel/recebedores" className="inline-flex h-10 items-center rounded-lg border border-border px-4 text-sm font-medium hover:bg-hover">
+              Recebedores e KYC (Pagar.me)
+            </Link>
+          }
         />
         <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi label="Receita mensal (MRR)" value={formatBRL(mrr)} note="Planos pagos de estabelecimentos ativos" />
