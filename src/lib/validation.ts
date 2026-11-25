@@ -36,7 +36,7 @@ export const createOrganizationSchema = z.object({
     .trim()
     .toLowerCase()
     .regex(/^[a-z0-9][a-z0-9-]{1,46}[a-z0-9]$/, "Use 3 a 48 letras minúsculas, números ou hífens")
-    .refine((s) => s !== "recebedores", "Esse endereço é reservado; escolha outro"),
+    .refine((s) => !["recebedores", "catalogo"].includes(s), "Esse endereço é reservado; escolha outro"),
 });
 
 export const invitationSchema = z.object({

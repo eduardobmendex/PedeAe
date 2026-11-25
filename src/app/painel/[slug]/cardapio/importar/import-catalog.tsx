@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { Badge, Button, Card, EmptyState, Input } from "@/components/ui";
 import { centsToInput, formatBRL, parseBRL } from "@/lib/money";
+import { imageUrl } from "@/lib/storage";
 import { importCatalog } from "../actions";
 
 export type CatalogItem = {
@@ -188,7 +189,7 @@ export function ImportCatalog({
                           />
                           {item.image_path && (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={item.image_path} alt="" loading="lazy" className="size-12 shrink-0 rounded-lg object-cover" />
+                            <img src={imageUrl(item.image_path) ?? undefined} alt="" loading="lazy" className="size-12 shrink-0 rounded-lg object-cover" />
                           )}
                           <span className="min-w-0">
                             <span className="flex flex-wrap items-center gap-2 font-medium">

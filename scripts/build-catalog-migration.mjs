@@ -66,7 +66,8 @@ const itemsSql = catalogItems
       price_rule: g.rule ?? "sum",
       items: g.items.map((i) => ({ name: i.name, price_delta_cents: i.price ?? 0 })),
     }));
-    return `  (${lit(item.key)}, ${lit(item.category)}, ${categoryOrder.indexOf(item.category) + 1}, ${lit(item.name)}, ${lit(item.description ?? "")}, ${item.price}, ${item.featured ? "true" : "false"}, ${json(options)}, array[${item.types.map(lit).join(", ")}], ${n}, ${CATALOG_VERSION}, ${itemPhotos[item.key] ? lit(imagePath(itemPhotos[item.key])) : "null"})`;
+    const photo = itemPhotos[item.key] ? lit(imagePath(itemPhotos[item.key])) : "null";
+    return `  (${lit(item.key)}, ${lit(item.category)}, ${categoryOrder.indexOf(item.category) + 1}, ${lit(item.name)}, ${lit(item.description ?? "")}, ${item.price}, ${item.featured ? "true" : "false"}, ${json(options)}, array[${item.types.map(lit).join(", ")}], ${n}, ${CATALOG_VERSION}, ${photo}, ${photo})`;
   })
   .join(",\n");
 
@@ -80,14 +81,16 @@ ${typesSql}
 on conflict (id) do update set name = excluded.name, description = excluded.description, sort_order = excluded.sort_order;
 
 insert into public.catalog_items
-  (key, category, category_sort, name, description, price_cents, featured, options, types, sort_order, catalog_version, image_path)
+  (key, category, category_sort, name, description, price_cents, featured, options, types, sort_order, catalog_version, default_image_path, image_path)
 values
 ${itemsSql}
 on conflict (key) do update set
   category = excluded.category, category_sort = excluded.category_sort, name = excluded.name,
   description = excluded.description, price_cents = excluded.price_cents, featured = excluded.featured,
   options = excluded.options, types = excluded.types, sort_order = excluded.sort_order,
-  catalog_version = excluded.catalog_version, image_path = excluded.image_path, active = true;
+  catalog_version = excluded.catalog_version, default_image_path = excluded.default_image_path,
+  -- Foto enviada pelo Admin Geral (tela Catálogo base) tem prioridade sobre a do código.
+  image_path = coalesce(public.catalog_items.custom_image_path, excluded.default_image_path), active = true;
 
 -- Itens que saíram do catálogo ficam inativos.
 update public.catalog_items set active = false where catalog_version < ${CATALOG_VERSION};
@@ -98,7 +101,8 @@ from public.catalog_items ci
 where p.source_catalog_key = ci.key
   and ci.image_path is not null
   and p.image_path is distinct from ci.image_path
-  and (p.image_path is null or p.image_path like '/catalog/%' or p.image_path like 'https://%');
+  and (p.image_path is null or p.image_path like '/catalog/%' or p.image_path like 'https://%'
+       or p.image_path like 'catalog-images/%');
 `;
 
 const file = `supabase/migrations/${process.argv[2] ?? "20261029092000"}_catalog_data_v${CATALOG_VERSION}.sql`;
